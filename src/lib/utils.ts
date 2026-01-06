@@ -1,3 +1,10 @@
+import { randomBytes } from "crypto";
+
+export function generatePaymentToken(): string {
+  // Generate a cryptographically secure 64-character hex token
+  return randomBytes(32).toString("hex");
+}
+
 export function generateInvoiceNumber(prefix: string = "INV"): string {
   const date = new Date();
   const year = date.getFullYear();

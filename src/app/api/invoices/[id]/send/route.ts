@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendInvoiceEmail } from "@/lib/email";
-import { formatDate } from "@/lib/utils";
+import { formatDate, generatePaymentToken } from "@/lib/utils";
 import { auth } from "@/lib/auth";
+import { isStripeEnabled } from "@/lib/stripe";
 import { uuidSchema } from "@/lib/validations";
 import {
   checkRateLimit,
@@ -73,6 +74,12 @@ export async function POST(
       );
     }
 
+    // Generate payment token if Stripe is enabled and no token exists
+    let paymentToken = invoice.paymentToken;
+    if (isStripeEnabled() && !paymentToken) {
+      paymentToken = generatePaymentToken();
+    }
+
     await sendInvoiceEmail({
       to: invoice.clientEmail,
       invoiceNumber: invoice.invoiceNumber,
@@ -80,6 +87,7 @@ export async function POST(
       total: invoice.total,
       dueDate: invoice.dueDate ? formatDate(invoice.dueDate) : null,
       invoiceId: invoice.id,
+      paymentToken: paymentToken || undefined,
     });
 
     const updatedInvoice = await prisma.invoice.update({
@@ -88,6 +96,7 @@ export async function POST(
         status: "sent",
         emailSentAt: new Date(),
         emailSentTo: invoice.clientEmail,
+        ...(paymentToken && { paymentToken }),
       },
     });
 

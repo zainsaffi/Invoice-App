@@ -46,8 +46,9 @@ export default function LoginPage() {
             <FileText className="h-8 w-8 text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Sign in to your account
+            Sosocial Invoice
           </h2>
+          <p className="mt-2 text-sm text-gray-500">Sign in to your account</p>
           <p className="mt-2 text-sm text-gray-600">
             Or{" "}
             <Link

@@ -1,24 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Settings, Building2, Mail, CreditCard, Bell, Shield, Save } from "lucide-react";
+import { Building2, CreditCard, Bell, Shield, Save, Banknote, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("business");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [formData, setFormData] = useState({
-    businessName: "My Business",
-    businessEmail: "contact@mybusiness.com",
+    businessName: "",
+    businessEmail: "",
     businessPhone: "",
     businessAddress: "",
     taxId: "",
     currency: "USD",
-    invoicePrefix: "INV-",
+    invoicePrefix: "INV",
     defaultDueDays: "30",
+    // Payment details
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
+    routingNumber: "",
+    iban: "",
+    paypalEmail: "",
+    paymentNotes: "",
+    // Notifications
     emailNotifications: true,
     paymentReminders: true,
   });
+
+  // Fetch user settings on load
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch("/api/settings");
+        if (response.ok) {
+          const data = await response.json();
+          setFormData((prev) => ({
+            ...prev,
+            ...data,
+            defaultDueDays: String(data.defaultDueDays || 30),
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -30,18 +63,51 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate save
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    alert("Settings saved successfully!");
+    setSaveMessage(null);
+
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          defaultDueDays: parseInt(formData.defaultDueDays) || 30,
+        }),
+      });
+
+      if (response.ok) {
+        setSaveMessage({ type: "success", text: "Settings saved successfully!" });
+      } else {
+        const data = await response.json();
+        setSaveMessage({ type: "error", text: data.error || "Failed to save settings" });
+      }
+    } catch {
+      setSaveMessage({ type: "error", text: "An error occurred while saving" });
+    } finally {
+      setIsSaving(false);
+      // Clear message after 3 seconds
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
   };
 
   const tabs = [
     { id: "business", label: "Business Info", icon: Building2 },
+    { id: "payment", label: "Payment Details", icon: Banknote },
     { id: "invoicing", label: "Invoicing", icon: CreditCard },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "security", label: "Security", icon: Shield },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar />
+        <main className="flex-1 ml-64 flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -157,6 +223,131 @@ export default function SettingsPage() {
                           onChange={handleChange}
                           rows={3}
                           placeholder="Enter your business address"
+                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "payment" && (
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                        <Banknote className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Payment Details</h2>
+                        <p className="text-sm text-gray-500">Bank details displayed on your invoices for client payments</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {/* Bank Transfer Section */}
+                      <div className="border border-gray-200 rounded-xl p-4">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-4">Bank Transfer Details</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Bank Name
+                            </label>
+                            <input
+                              type="text"
+                              name="bankName"
+                              value={formData.bankName}
+                              onChange={handleChange}
+                              placeholder="e.g., Chase Bank"
+                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Account Holder Name
+                            </label>
+                            <input
+                              type="text"
+                              name="accountName"
+                              value={formData.accountName}
+                              onChange={handleChange}
+                              placeholder="Name on account"
+                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Account Number
+                            </label>
+                            <input
+                              type="text"
+                              name="accountNumber"
+                              value={formData.accountNumber}
+                              onChange={handleChange}
+                              placeholder="Bank account number"
+                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Routing / SWIFT / Sort Code
+                            </label>
+                            <input
+                              type="text"
+                              name="routingNumber"
+                              value={formData.routingNumber}
+                              onChange={handleChange}
+                              placeholder="Routing number"
+                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            IBAN (International)
+                          </label>
+                          <input
+                            type="text"
+                            name="iban"
+                            value={formData.iban}
+                            onChange={handleChange}
+                            placeholder="e.g., GB82 WEST 1234 5698 7654 32"
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* PayPal Section */}
+                      <div className="border border-gray-200 rounded-xl p-4">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-4">PayPal</h3>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            PayPal Email
+                          </label>
+                          <input
+                            type="email"
+                            name="paypalEmail"
+                            value={formData.paypalEmail}
+                            onChange={handleChange}
+                            placeholder="payments@yourcompany.com"
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Additional Notes */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Additional Payment Instructions
+                        </label>
+                        <textarea
+                          name="paymentNotes"
+                          value={formData.paymentNotes}
+                          onChange={handleChange}
+                          rows={3}
+                          placeholder="e.g., Please use invoice number as payment reference"
                           className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm resize-none"
                         />
                       </div>
@@ -310,7 +501,17 @@ export default function SettingsPage() {
                 )}
 
                 {/* Save Button */}
-                <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  {saveMessage && (
+                    <div className={`flex items-center gap-2 text-sm ${saveMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+                      {saveMessage.type === "success" ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4" />
+                      )}
+                      {saveMessage.text}
+                    </div>
+                  )}
                   <button
                     onClick={handleSave}
                     disabled={isSaving}

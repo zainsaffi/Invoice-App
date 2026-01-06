@@ -31,6 +31,7 @@ interface SendInvoiceEmailParams {
   total: number;
   dueDate: string | null;
   invoiceId: string;
+  paymentToken?: string;
 }
 
 // Sanitize email content to prevent injection
@@ -50,6 +51,7 @@ export async function sendInvoiceEmail({
   total,
   dueDate,
   invoiceId,
+  paymentToken,
 }: SendInvoiceEmailParams) {
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,6 +66,7 @@ export async function sendInvoiceEmail({
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const viewUrl = `${appUrl}/invoices/${safeInvoiceId}`;
+  const paymentUrl = paymentToken ? `${appUrl}/pay/${paymentToken}` : null;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -75,9 +78,20 @@ export async function sendInvoiceEmail({
         <p><strong>Total Amount:</strong> $${total.toFixed(2)}</p>
         ${dueDate ? `<p><strong>Due Date:</strong> ${sanitizeForHtml(dueDate)}</p>` : ""}
       </div>
+      ${
+        paymentUrl
+          ? `
+      <p style="margin-bottom: 16px;">
+        <a href="${paymentUrl}" style="background: #22c55e; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px;">
+          Pay Invoice Now
+        </a>
+      </p>
+      `
+          : ""
+      }
       <p>
-        <a href="${viewUrl}" style="background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-          View Invoice
+        <a href="${viewUrl}" style="background: ${paymentUrl ? "#6b7280" : "#0070f3"}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          View Invoice Details
         </a>
       </p>
       <p style="color: #666; font-size: 14px; margin-top: 30px;">

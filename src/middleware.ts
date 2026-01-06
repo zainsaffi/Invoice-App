@@ -2,7 +2,14 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 // Routes that don't require authentication
-const publicRoutes = ["/login", "/register", "/api/auth"];
+const publicRoutes = [
+  "/login",
+  "/register",
+  "/api/auth",
+  "/pay",           // Public payment pages
+  "/api/pay",       // Public payment API
+  "/api/webhooks",  // Stripe webhooks
+];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

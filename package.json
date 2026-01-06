@@ -1,5 +1,5 @@
 {
-  "name": "invoice-app",
+  "name": "sosocial-invoice",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -24,6 +24,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.6.0",
+    "stripe": "^20.1.1",
     "uuid": "^13.0.0",
     "zod": "^4.3.5"
   },

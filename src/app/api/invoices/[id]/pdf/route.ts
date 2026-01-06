@@ -133,6 +133,40 @@ const styles = StyleSheet.create({
     borderTopColor: "#E5E7EB",
     paddingTop: 20,
   },
+  paymentSection: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  paymentTitle: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#374151",
+    marginBottom: 10,
+  },
+  paymentRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  paymentLabel: {
+    width: 120,
+    fontSize: 9,
+    color: "#6B7280",
+  },
+  paymentValue: {
+    flex: 1,
+    fontSize: 9,
+    color: "#111827",
+  },
+  paymentNote: {
+    marginTop: 10,
+    fontSize: 9,
+    color: "#6B7280",
+    fontStyle: "italic",
+  },
   status: {
     padding: "4 12",
     borderRadius: 4,
@@ -246,8 +280,29 @@ function isImageFile(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
+// Payment details type
+type PaymentDetails = {
+  businessName?: string | null;
+  bankName?: string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
+  routingNumber?: string | null;
+  iban?: string | null;
+  paypalEmail?: string | null;
+  paymentNotes?: string | null;
+};
+
+// Check if user has any payment details
+function hasPaymentDetails(payment: PaymentDetails): boolean {
+  return !!(payment.bankName || payment.accountNumber || payment.iban || payment.paypalEmail);
+}
+
 // Invoice PDF Component
-const InvoicePDF = ({ invoice, imageAttachments }: { invoice: any; imageAttachments: { filename: string; data: string; mimeType: string }[] }) => {
+const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
+  invoice: any;
+  imageAttachments: { filename: string; data: string; mimeType: string }[];
+  paymentDetails: PaymentDetails;
+}) => {
   const status = getDisplayStatus(invoice);
   const statusStyle = {
     draft: styles.statusDraft,
@@ -272,8 +327,8 @@ const InvoicePDF = ({ invoice, imageAttachments }: { invoice: any; imageAttachme
         React.createElement(
           View,
           null,
-          React.createElement(Text, { style: styles.logo }, "InvoiceApp"),
-          React.createElement(Text, { style: { fontSize: 9, color: "#6B7280", marginTop: 4 } }, "Professional Invoicing")
+          React.createElement(Text, { style: styles.logo }, paymentDetails.businessName || "Sosocial Invoice"),
+          React.createElement(Text, { style: { fontSize: 9, color: "#6B7280", marginTop: 4 } }, "Invoice")
         ),
         React.createElement(
           View,
@@ -370,6 +425,56 @@ const InvoicePDF = ({ invoice, imageAttachments }: { invoice: any; imageAttachme
           React.createElement(Text, { style: styles.grandTotalValue }, formatCurrency(invoice.total))
         )
       ),
+      // Payment Details Section (only if user has set up payment info)
+      hasPaymentDetails(paymentDetails) && React.createElement(
+        View,
+        { style: styles.paymentSection },
+        React.createElement(Text, { style: styles.paymentTitle }, "Payment Information"),
+        // Bank Details
+        paymentDetails.bankName && React.createElement(
+          View,
+          { style: styles.paymentRow },
+          React.createElement(Text, { style: styles.paymentLabel }, "Bank:"),
+          React.createElement(Text, { style: styles.paymentValue }, paymentDetails.bankName)
+        ),
+        paymentDetails.accountName && React.createElement(
+          View,
+          { style: styles.paymentRow },
+          React.createElement(Text, { style: styles.paymentLabel }, "Account Name:"),
+          React.createElement(Text, { style: styles.paymentValue }, paymentDetails.accountName)
+        ),
+        paymentDetails.accountNumber && React.createElement(
+          View,
+          { style: styles.paymentRow },
+          React.createElement(Text, { style: styles.paymentLabel }, "Account Number:"),
+          React.createElement(Text, { style: styles.paymentValue }, paymentDetails.accountNumber)
+        ),
+        paymentDetails.routingNumber && React.createElement(
+          View,
+          { style: styles.paymentRow },
+          React.createElement(Text, { style: styles.paymentLabel }, "Routing/SWIFT:"),
+          React.createElement(Text, { style: styles.paymentValue }, paymentDetails.routingNumber)
+        ),
+        paymentDetails.iban && React.createElement(
+          View,
+          { style: styles.paymentRow },
+          React.createElement(Text, { style: styles.paymentLabel }, "IBAN:"),
+          React.createElement(Text, { style: styles.paymentValue }, paymentDetails.iban)
+        ),
+        // PayPal
+        paymentDetails.paypalEmail && React.createElement(
+          View,
+          { style: [styles.paymentRow, { marginTop: 8 }] },
+          React.createElement(Text, { style: styles.paymentLabel }, "PayPal:"),
+          React.createElement(Text, { style: styles.paymentValue }, paymentDetails.paypalEmail)
+        ),
+        // Additional notes
+        paymentDetails.paymentNotes && React.createElement(
+          Text,
+          { style: styles.paymentNote },
+          paymentDetails.paymentNotes
+        )
+      ),
       // Footer
       React.createElement(
         View,
@@ -442,6 +547,18 @@ export async function GET(
       include: {
         items: true,
         receipts: true,
+        user: {
+          select: {
+            businessName: true,
+            bankName: true,
+            accountName: true,
+            accountNumber: true,
+            routingNumber: true,
+            iban: true,
+            paypalEmail: true,
+            paymentNotes: true,
+          },
+        },
       },
     });
 
@@ -478,9 +595,12 @@ export async function GET(
       }
     }
 
+    // Extract payment details from user
+    const paymentDetails: PaymentDetails = invoice.user || {};
+
     // Generate PDF
     const pdfBuffer = await renderToBuffer(
-      React.createElement(InvoicePDF, { invoice, imageAttachments }) as any
+      React.createElement(InvoicePDF, { invoice, imageAttachments, paymentDetails }) as any
     );
 
     // Return PDF as response

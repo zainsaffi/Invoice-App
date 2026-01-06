@@ -23,6 +23,15 @@ model User {
   invoicePrefix   String    @default("INV")
   defaultDueDays  Int       @default(30)
 
+  // Payment/Bank details (displayed on invoices)
+  bankName        String?
+  accountName     String?
+  accountNumber   String?
+  routingNumber   String?   // US routing / SWIFT / Sort code
+  iban            String?   // International Bank Account Number
+  paypalEmail     String?
+  paymentNotes    String?   // Additional payment instructions
+
   // Relations
   invoices      Invoice[]
   auditLogs     AuditLog[]
@@ -61,6 +70,11 @@ model Invoice {
   // Payment tracking
   paidAt        DateTime?
   paymentMethod String?
+
+  // Stripe payment tracking
+  stripeCheckoutSessionId  String?
+  stripePaymentIntentId    String?
+  paymentToken             String?   @unique
 
   // Receipts
   receipts      Receipt[]

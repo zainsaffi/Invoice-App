@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import {
   LayoutGrid,
   FileText,
   Users,
   Settings,
   CreditCard,
-  Building2,
   HelpCircle,
   Plus,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 
 const navigation = [
@@ -23,11 +24,24 @@ const navigation = [
 
 const financeNav = [
   { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Bank Deposits", href: "/deposits", icon: Building2 },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const userInitials = session?.user?.name
+    ? session.user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "??";
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: "/login" });
+  };
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -44,8 +58,8 @@ export default function Sidebar() {
             <FileText className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="font-bold text-gray-900 text-lg">InvoiceApp</span>
-            <p className="text-xs text-gray-500">Manage invoices</p>
+            <span className="font-bold text-gray-900 text-lg">Sosocial</span>
+            <p className="text-xs text-gray-500">Invoice</p>
           </div>
         </Link>
       </div>
@@ -121,12 +135,23 @@ export default function Sidebar() {
         {/* User Profile */}
         <div className="mt-3 flex items-center gap-3 px-3 py-3 bg-gray-50 rounded-xl">
           <div className="w-9 h-9 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-            JD
+            {userInitials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">John Doe</p>
-            <p className="text-xs text-gray-500 truncate">john@example.com</p>
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {session?.user?.name || "User"}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {session?.user?.email || ""}
+            </p>
           </div>
+          <button
+            onClick={handleSignOut}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>
