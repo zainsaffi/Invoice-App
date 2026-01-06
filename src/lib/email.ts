@@ -1,14 +1,28 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Secure email configuration with TLS
+const createTransporter = () => {
+  const port = parseInt(process.env.SMTP_PORT || "587");
+  const isSecurePort = port === 465;
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: isSecurePort, // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    // Enable STARTTLS for non-465 ports
+    ...(!isSecurePort && {
+      requireTLS: true,
+      tls: {
+        minVersion: "TLSv1.2",
+        rejectUnauthorized: process.env.NODE_ENV === "production", // Strict in production
+      },
+    }),
+  });
+};
 
 interface SendInvoiceEmailParams {
   to: string;
@@ -19,6 +33,16 @@ interface SendInvoiceEmailParams {
   invoiceId: string;
 }
 
+// Sanitize email content to prevent injection
+function sanitizeForHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function sendInvoiceEmail({
   to,
   invoiceNumber,
@@ -27,18 +51,29 @@ export async function sendInvoiceEmail({
   dueDate,
   invoiceId,
 }: SendInvoiceEmailParams) {
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(to)) {
+    throw new Error("Invalid email address");
+  }
+
+  // Sanitize all user-provided content
+  const safeInvoiceNumber = sanitizeForHtml(invoiceNumber);
+  const safeClientName = sanitizeForHtml(clientName);
+  const safeInvoiceId = encodeURIComponent(invoiceId);
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const viewUrl = `${appUrl}/invoices/${invoiceId}`;
+  const viewUrl = `${appUrl}/invoices/${safeInvoiceId}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #333;">Invoice ${invoiceNumber}</h1>
-      <p>Dear ${clientName},</p>
+      <h1 style="color: #333;">Invoice ${safeInvoiceNumber}</h1>
+      <p>Dear ${safeClientName},</p>
       <p>Please find your invoice details below:</p>
       <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Invoice Number:</strong> ${invoiceNumber}</p>
+        <p><strong>Invoice Number:</strong> ${safeInvoiceNumber}</p>
         <p><strong>Total Amount:</strong> $${total.toFixed(2)}</p>
-        ${dueDate ? `<p><strong>Due Date:</strong> ${dueDate}</p>` : ""}
+        ${dueDate ? `<p><strong>Due Date:</strong> ${sanitizeForHtml(dueDate)}</p>` : ""}
       </div>
       <p>
         <a href="${viewUrl}" style="background: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
@@ -51,10 +86,12 @@ export async function sendInvoiceEmail({
     </div>
   `;
 
+  const transporter = createTransporter();
+
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
-    subject: `Invoice ${invoiceNumber} from Your Company`,
+    subject: `Invoice ${safeInvoiceNumber} from Your Company`,
     html,
   });
 }

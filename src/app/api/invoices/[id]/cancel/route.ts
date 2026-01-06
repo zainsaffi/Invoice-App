@@ -1,16 +1,63 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { uuidSchema } from "@/lib/validations";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  unauthorizedResponse,
+  forbiddenResponse,
+  validationErrorResponse,
+  validateCsrfToken,
+  logAudit,
+  checkInvoiceOwnership,
+} from "@/lib/security";
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authentication check
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorizedResponse();
+    }
+
+    // CSRF validation
+    if (!validateCsrfToken(request)) {
+      return NextResponse.json(
+        { error: "Invalid request origin" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
 
-    // Check if invoice exists
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+    // Validate ID format
+    const idValidation = uuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse("Invalid invoice ID format");
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(`invoice:cancel:${session.user.id}`, 30);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetAt);
+    }
+
+    // Authorization: check ownership
+    const isOwner = await checkInvoiceOwnership(id, session.user.id);
+    if (!isOwner) {
+      return forbiddenResponse();
+    }
+
+    // Check if invoice exists and its current status
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+      },
     });
 
     if (!invoice) {
@@ -47,6 +94,16 @@ export async function POST(
         receipts: true,
       },
     });
+
+    // Audit log
+    await logAudit(
+      session.user.id,
+      "cancel",
+      "invoice",
+      id,
+      { previousStatus: invoice.status },
+      request
+    );
 
     return NextResponse.json(updatedInvoice);
   } catch (error) {

@@ -1,14 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { updateInvoiceSchema, uuidSchema, validateInput } from "@/lib/validations";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  unauthorizedResponse,
+  forbiddenResponse,
+  validationErrorResponse,
+  validateCsrfToken,
+  logAudit,
+  checkInvoiceOwnership,
+} from "@/lib/security";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authentication check
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorizedResponse();
+    }
+
     const { id } = await params;
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+
+    // Validate ID format
+    const idValidation = uuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse("Invalid invoice ID format");
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(`invoice:get:${session.user.id}`);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetAt);
+    }
+
+    // Fetch invoice with ownership check
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id,
+        userId: session.user.id, // Authorization: only owner can view
+      },
       include: {
         items: true,
         receipts: true,
@@ -18,6 +53,9 @@ export async function GET(
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
+
+    // Audit log
+    await logAudit(session.user.id, "view", "invoice", id, null, request);
 
     return NextResponse.json(invoice);
   } catch (error) {
@@ -34,8 +72,48 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authentication check
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorizedResponse();
+    }
+
+    // CSRF validation
+    if (!validateCsrfToken(request)) {
+      return NextResponse.json(
+        { error: "Invalid request origin" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
+
+    // Validate ID format
+    const idValidation = uuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse("Invalid invoice ID format");
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(`invoice:update:${session.user.id}`, 30);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetAt);
+    }
+
+    // Authorization: check ownership
+    const isOwner = await checkInvoiceOwnership(id, session.user.id);
+    if (!isOwner) {
+      return forbiddenResponse();
+    }
+
     const body = await request.json();
+
+    // Validate input
+    const validation = validateInput(updateInvoiceSchema, body);
+    if (!validation.success) {
+      return validationErrorResponse(validation.error);
+    }
+
     const {
       invoiceNumber,
       clientName,
@@ -45,47 +123,59 @@ export async function PUT(
       items,
       tax,
       dueDate,
-    } = body;
+    } = validation.data;
 
+    // Calculate totals
     const subtotal = items.reduce(
-      (sum: number, item: { quantity: number; unitPrice: number }) =>
-        sum + item.quantity * item.unitPrice,
+      (sum, item) => sum + item.quantity * item.unitPrice,
       0
     );
-    const total = subtotal + (tax || 0);
+    const total = subtotal + tax;
 
-    // Delete existing items
-    await prisma.invoiceItem.deleteMany({
-      where: { invoiceId: id },
-    });
+    // Use transaction to ensure atomicity
+    const invoice = await prisma.$transaction(async (tx) => {
+      // Delete existing items within transaction
+      await tx.invoiceItem.deleteMany({
+        where: { invoiceId: id },
+      });
 
-    const invoice = await prisma.invoice.update({
-      where: { id },
-      data: {
-        ...(invoiceNumber && { invoiceNumber }),
-        clientName,
-        clientEmail,
-        clientAddress,
-        description,
-        subtotal,
-        tax: tax || 0,
-        total,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        items: {
-          create: items.map(
-            (item: { description: string; quantity: number; unitPrice: number }) => ({
+      // Update invoice with new items
+      return tx.invoice.update({
+        where: { id },
+        data: {
+          ...(invoiceNumber && { invoiceNumber }),
+          clientName,
+          clientEmail,
+          clientAddress: clientAddress || "",
+          description,
+          subtotal,
+          tax,
+          total,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          items: {
+            create: items.map((item) => ({
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               total: item.quantity * item.unitPrice,
-            })
-          ),
+            })),
+          },
         },
-      },
-      include: {
-        items: true,
-      },
+        include: {
+          items: true,
+        },
+      });
     });
+
+    // Audit log
+    await logAudit(
+      session.user.id,
+      "update",
+      "invoice",
+      id,
+      { invoiceNumber: invoice.invoiceNumber },
+      request
+    );
 
     return NextResponse.json(invoice);
   } catch (error) {
@@ -102,10 +192,47 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authentication check
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorizedResponse();
+    }
+
+    // CSRF validation
+    if (!validateCsrfToken(request)) {
+      return NextResponse.json(
+        { error: "Invalid request origin" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
+
+    // Validate ID format
+    const idValidation = uuidSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse("Invalid invoice ID format");
+    }
+
+    // Rate limiting
+    const rateLimit = await checkRateLimit(`invoice:delete:${session.user.id}`, 20);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.resetAt);
+    }
+
+    // Authorization: check ownership
+    const isOwner = await checkInvoiceOwnership(id, session.user.id);
+    if (!isOwner) {
+      return forbiddenResponse();
+    }
+
+    // Delete invoice (cascades to items and receipts due to schema)
     await prisma.invoice.delete({
       where: { id },
     });
+
+    // Audit log
+    await logAudit(session.user.id, "delete", "invoice", id, null, request);
 
     return NextResponse.json({ success: true });
   } catch (error) {

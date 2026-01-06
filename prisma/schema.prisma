@@ -7,9 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String?
+
+  // Business settings
+  businessName    String?
+  businessEmail   String?
+  businessPhone   String?
+  businessAddress String?
+  taxId           String?
+  currency        String    @default("USD")
+  invoicePrefix   String    @default("INV")
+  defaultDueDays  Int       @default(30)
+
+  // Relations
+  invoices      Invoice[]
+  auditLogs     AuditLog[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model Invoice {
   id            String    @id @default(uuid())
   invoiceNumber String    @unique
+
+  // Owner
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
 
   // Client details
   clientName    String
@@ -65,4 +93,26 @@ model Receipt {
   invoiceId String
 
   createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   // create, update, delete, view, send, pay, cancel
+  entity    String   // invoice, receipt, user
+  entityId  String?
+  details   String?  // JSON string with additional details
+  ipAddress String?
+  userAgent String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  createdAt DateTime @default(now())
+}
+
+model RateLimit {
+  id        String   @id @default(uuid())
+  key       String   @unique // IP address or user ID
+  count     Int      @default(0)
+  windowStart DateTime @default(now())
 }
