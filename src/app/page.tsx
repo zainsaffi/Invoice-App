@@ -1,63 +1,276 @@
-import Image from "next/image";
+import { prisma } from "@/lib/prisma";
+import Sidebar from "@/components/Sidebar";
+import SalesChart from "@/components/SalesChart";
+import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
+import {
+  TrendingUp,
+  TrendingDown,
+  FileText,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  ArrowRight,
+} from "lucide-react";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Dashboard() {
+  const invoices = await prisma.invoice.findMany({
+    include: {
+      items: true,
+      receipts: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  const now = new Date();
+
+  // Prepare sales data for the chart
+  const salesData = invoices
+    .filter((inv) => inv.status === "paid")
+    .map((inv) => ({
+      date: new Date(inv.createdAt).toISOString().split("T")[0],
+      amount: inv.total,
+      paidAt: inv.paidAt ? new Date(inv.paidAt).toISOString() : null,
+    }));
+
+  // Calculate quick stats
+  const calculateSalesForDays = (days: number) => {
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    return invoices
+      .filter(
+        (inv) =>
+          inv.status === "paid" && inv.paidAt && new Date(inv.paidAt) >= start
+      )
+      .reduce((sum, inv) => sum + inv.total, 0);
+  };
+
+  const last30Days = calculateSalesForDays(30);
+  const prev30Days = (() => {
+    const periodStart = new Date();
+    periodStart.setDate(periodStart.getDate() - 30);
+    const previousStart = new Date();
+    previousStart.setDate(previousStart.getDate() - 60);
+    return invoices
+      .filter((inv) => {
+        if (inv.status !== "paid" || !inv.paidAt) return false;
+        const paidDate = new Date(inv.paidAt);
+        return paidDate >= previousStart && paidDate < periodStart;
+      })
+      .reduce((sum, inv) => sum + inv.total, 0);
+  })();
+
+  const trendPercent =
+    prev30Days > 0
+      ? Math.round(((last30Days - prev30Days) / prev30Days) * 100)
+      : 0;
+  const trendUp = last30Days >= prev30Days;
+
+  // Overall stats
+  const totalRevenue = invoices
+    .filter((inv) => inv.status === "paid")
+    .reduce((sum, inv) => sum + inv.total, 0);
+
+  const pendingAmount = invoices
+    .filter((inv) => inv.status !== "paid" && inv.status !== "cancelled")
+    .reduce((sum, inv) => sum + inv.total, 0);
+
+  const overdueInvoices = invoices.filter(
+    (inv) =>
+      inv.dueDate &&
+      new Date(inv.dueDate) < now &&
+      inv.status !== "paid" &&
+      inv.status !== "cancelled"
+  );
+  const overdueAmount = overdueInvoices.reduce(
+    (sum, inv) => sum + inv.total,
+    0
+  );
+
+  // Recent activity
+  const recentPaidInvoices = invoices
+    .filter((inv) => inv.status === "paid")
+    .slice(0, 5);
+
+  const pendingInvoicesList = invoices
+    .filter((inv) => inv.status !== "paid" && inv.status !== "cancelled")
+    .slice(0, 5);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar />
+      <main className="flex-1 ml-64">
+        <div className="p-8">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-500 mt-1">
+              Overview of your business performance
+            </p>
+          </div>
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Last 30 Days</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(last30Days)}
+                  </p>
+                  {trendPercent !== 0 && (
+                    <div
+                      className={`flex items-center gap-1 text-xs font-medium mt-1 ${
+                        trendUp ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {trendUp ? (
+                        <TrendingUp className="w-3 h-3" />
+                      ) : (
+                        <TrendingDown className="w-3 h-3" />
+                      )}
+                      {Math.abs(trendPercent)}% vs prev period
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">
+                    Total Collected
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(totalRevenue)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Pending</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(pendingAmount)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Overdue</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(overdueAmount)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sales Chart */}
+          <div className="mb-8">
+            <SalesChart salesData={salesData} />
+          </div>
+
+          {/* Recent Activity */}
+          <div className="grid grid-cols-2 gap-8">
+            {/* Recent Payments */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Recent Payments</h2>
+                <Link href="/payments" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                  View all <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              {recentPaidInvoices.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">
+                  <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No payments yet</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {recentPaidInvoices.map((invoice) => (
+                    <Link
+                      key={invoice.id}
+                      href={`/invoices/${invoice.id}`}
+                      className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{invoice.clientName}</p>
+                        <p className="text-xs text-gray-500">{invoice.invoiceNumber}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-green-600">{formatCurrency(invoice.total)}</p>
+                        <p className="text-xs text-gray-500">
+                          {invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString() : '-'}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pending Invoices */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Pending Invoices</h2>
+                <Link href="/invoices" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                  View all <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              {pendingInvoicesList.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">
+                  <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No pending invoices</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {pendingInvoicesList.map((invoice) => {
+                    const isOverdue = invoice.dueDate && new Date(invoice.dueDate) < now;
+                    return (
+                      <Link
+                        key={invoice.id}
+                        href={`/invoices/${invoice.id}`}
+                        className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{invoice.clientName}</p>
+                          <p className="text-xs text-gray-500">{invoice.invoiceNumber}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900">{formatCurrency(invoice.total)}</p>
+                          {invoice.dueDate && (
+                            <p className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                              {isOverdue ? 'Overdue' : `Due ${new Date(invoice.dueDate).toLocaleDateString()}`}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </main>
     </div>
