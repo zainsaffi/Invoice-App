@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, toInvoice, toInvoiceItem, toReceipt } from "@/db";
+import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, PaymentRow, toInvoice, toInvoiceItem, toReceipt, toPayment } from "@/db";
 import { v4 as uuid } from "uuid";
 import { auth } from "@/lib/auth";
 import { updateInvoiceSchema, uuidSchema, validateInput } from "@/lib/validations";
@@ -49,7 +49,7 @@ export async function GET(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    // Fetch items and receipts
+    // Fetch items, receipts, and payments
     const itemRows = await queryMany<InvoiceItemRow>(
       "SELECT * FROM invoice_items WHERE invoice_id = $1",
       [id]
@@ -60,10 +60,16 @@ export async function GET(
       [id]
     );
 
+    const paymentRows = await queryMany<PaymentRow>(
+      "SELECT * FROM payments WHERE invoice_id = $1 ORDER BY paid_at DESC",
+      [id]
+    );
+
     const invoice = {
       ...toInvoice(invoiceRow),
       items: itemRows.map(toInvoiceItem),
       receipts: receiptRows.map(toReceipt),
+      payments: paymentRows.map(toPayment),
     };
 
     // Audit log
@@ -136,6 +142,7 @@ export async function PUT(
       items,
       tax,
       dueDate,
+      paymentInstructions,
     } = validation.data;
 
     // Calculate totals
@@ -161,8 +168,9 @@ export async function PUT(
         tax = $8,
         total = $9,
         due_date = $10,
-        updated_at = $11
-      WHERE id = $12`,
+        payment_instructions = $11,
+        updated_at = $12
+      WHERE id = $13`,
       [
         invoiceNumber || null,
         clientName,
@@ -174,6 +182,7 @@ export async function PUT(
         tax,
         total,
         dueDate ? new Date(dueDate) : null,
+        paymentInstructions || null,
         new Date(),
         id,
       ]

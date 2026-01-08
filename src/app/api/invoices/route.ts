@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.error);
     }
 
-    const { clientName, clientEmail, clientBusinessName, clientAddress, description, items, tax, dueDate } =
+    const { clientName, clientEmail, clientBusinessName, clientAddress, description, items, tax, dueDate, paymentInstructions } =
       validation.data;
 
     // Calculate totals with validated data
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
     // Insert invoice
     await query(
       `INSERT INTO invoices (id, invoice_number, user_id, client_name, client_email, client_business_name,
-       client_address, description, subtotal, tax, total, due_date, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())`,
+       client_address, description, subtotal, tax, total, due_date, payment_instructions, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())`,
       [
         invoiceId,
         invoiceNumber,
@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
         tax,
         total,
         dueDate ? new Date(dueDate) : null,
+        paymentInstructions || null,
       ]
     );
 

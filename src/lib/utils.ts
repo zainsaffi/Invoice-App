@@ -44,7 +44,7 @@ export function getStatusColor(status: string): string {
   }
 }
 
-export type DisplayStatus = "draft" | "sent" | "due" | "overdue" | "paid" | "cancelled";
+export type DisplayStatus = "draft" | "sent" | "due" | "overdue" | "paid" | "partial" | "cancelled";
 
 /**
  * Computes the display status based on invoice data
@@ -52,17 +52,29 @@ export type DisplayStatus = "draft" | "sent" | "due" | "overdue" | "paid" | "can
  * - sent: Sent but no due date set
  * - due: Sent and due date is in the future
  * - overdue: Sent and due date has passed
- * - paid: Payment received
+ * - partial: Some payment received but not full amount
+ * - paid: Full payment received
  * - cancelled: Invoice was cancelled
  */
 export function getDisplayStatus(invoice: {
   status: string;
   dueDate: Date | string | null;
   emailSentAt: Date | string | null;
+  amountPaid?: number;
+  total?: number;
 }): DisplayStatus {
-  // If cancelled or paid, return as-is
+  // If cancelled, return as-is
   if (invoice.status === "cancelled") return "cancelled";
-  if (invoice.status === "paid") return "paid";
+
+  // Check for partial payment (some payment but not full)
+  if (invoice.amountPaid && invoice.total && invoice.amountPaid > 0 && invoice.amountPaid < invoice.total) {
+    return "partial";
+  }
+
+  // If fully paid, return paid
+  if (invoice.status === "paid" || (invoice.amountPaid && invoice.total && invoice.amountPaid >= invoice.total)) {
+    return "paid";
+  }
 
   // If not sent yet, it's a draft
   if (invoice.status === "draft" || !invoice.emailSentAt) return "draft";
@@ -95,6 +107,8 @@ export function getDisplayStatusBadge(status: DisplayStatus): { bg: string; text
       return { bg: "bg-yellow-100", text: "text-yellow-700", label: "DUE" };
     case "overdue":
       return { bg: "bg-red-100", text: "text-red-700", label: "OVERDUE" };
+    case "partial":
+      return { bg: "bg-amber-100", text: "text-amber-700", label: "PARTIAL" };
     case "paid":
       return { bg: "bg-green-100", text: "text-green-700", label: "PAID" };
     case "cancelled":

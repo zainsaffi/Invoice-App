@@ -20,6 +20,7 @@ const tabs = [
   { id: "draft", label: "Draft" },
   { id: "due", label: "Due" },
   { id: "overdue", label: "Overdue" },
+  { id: "partial", label: "Partial" },
   { id: "paid", label: "Paid" },
   { id: "cancelled", label: "Cancelled" },
 ];
@@ -149,6 +150,7 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
       sent: 0,
       due: 0,
       overdue: 0,
+      partial: 0,
       paid: 0,
       cancelled: 0,
     };

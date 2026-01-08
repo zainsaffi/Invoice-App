@@ -128,9 +128,22 @@ export interface InvoiceRow {
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;
   payment_token: string | null;
+  amount_paid: number;
+  payment_instructions: string | null;
   due_date: Date | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface PaymentRow {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  payment_method: string | null;
+  reference: string | null;
+  notes: string | null;
+  paid_at: Date;
+  created_at: Date;
 }
 
 export interface InvoiceItemRow {
@@ -149,6 +162,7 @@ export interface ReceiptRow {
   mime_type: string;
   size: number;
   invoice_id: string;
+  attachment_type: string;
   created_at: Date;
 }
 
@@ -182,9 +196,9 @@ export function toInvoice(row: InvoiceRow) {
     clientBusinessName: row.client_business_name,
     clientAddress: row.client_address,
     description: row.description,
-    subtotal: row.subtotal,
-    tax: row.tax,
-    total: row.total,
+    subtotal: Number(row.subtotal),
+    tax: Number(row.tax),
+    total: Number(row.total),
     status: row.status,
     emailSentAt: row.email_sent_at,
     emailSentTo: row.email_sent_to,
@@ -193,9 +207,25 @@ export function toInvoice(row: InvoiceRow) {
     stripeCheckoutSessionId: row.stripe_checkout_session_id,
     stripePaymentIntentId: row.stripe_payment_intent_id,
     paymentToken: row.payment_token,
+    amountPaid: Number(row.amount_paid || 0),
+    paymentInstructions: row.payment_instructions,
     dueDate: row.due_date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+// Convert payment row to camelCase
+export function toPayment(row: PaymentRow) {
+  return {
+    id: row.id,
+    invoiceId: row.invoice_id,
+    amount: Number(row.amount),
+    paymentMethod: row.payment_method,
+    reference: row.reference,
+    notes: row.notes,
+    paidAt: row.paid_at,
+    createdAt: row.created_at,
   };
 }
 
@@ -231,9 +261,9 @@ export function toInvoiceItem(row: InvoiceItemRow) {
   return {
     id: row.id,
     description: row.description,
-    quantity: row.quantity,
-    unitPrice: row.unit_price,
-    total: row.total,
+    quantity: Number(row.quantity),
+    unitPrice: Number(row.unit_price),
+    total: Number(row.total),
     invoiceId: row.invoice_id,
   };
 }
@@ -247,6 +277,7 @@ export function toReceipt(row: ReceiptRow) {
     mimeType: row.mime_type,
     size: row.size,
     invoiceId: row.invoice_id,
+    attachmentType: row.attachment_type,
     createdAt: row.created_at,
   };
 }

@@ -5,6 +5,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { auth } from "@/lib/auth";
 import { uuidSchema } from "@/lib/validations";
+import { AttachmentType, ATTACHMENT_TYPES } from "@/types/invoice";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -80,6 +81,13 @@ export async function POST(
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
+    const attachmentTypeValue = formData.get("attachmentType") as string | null;
+
+    // Validate attachment type
+    const validAttachmentTypes = ATTACHMENT_TYPES.map(t => t.value);
+    const attachmentType: AttachmentType = attachmentTypeValue && validAttachmentTypes.includes(attachmentTypeValue as AttachmentType)
+      ? (attachmentTypeValue as AttachmentType)
+      : 'other';
 
     if (!file) {
       return validationErrorResponse("No file provided");
@@ -157,8 +165,8 @@ export async function POST(
     // Store relative path for serving through API
     const receiptId = uuidv4();
     await query(
-      `INSERT INTO receipts (id, filename, filepath, mime_type, size, invoice_id, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO receipts (id, filename, filepath, mime_type, size, invoice_id, attachment_type, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         receiptId,
         sanitizedFilename,
@@ -166,6 +174,7 @@ export async function POST(
         file.type,
         file.size,
         id,
+        attachmentType,
         new Date(),
       ]
     );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Upload, X, FileText, Download, Paperclip, Image } from "lucide-react";
-import { Receipt } from "@/types/invoice";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Upload, X, FileText, Download, Paperclip, Image, Tag } from "lucide-react";
+import { Receipt, AttachmentType, ATTACHMENT_TYPES, getAttachmentTypeLabel } from "@/types/invoice";
 
 interface ReceiptUploadProps {
   invoiceId: string;
@@ -17,18 +18,32 @@ export default function ReceiptUpload({
 }: ReceiptUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedType, setSelectedType] = useState<AttachmentType>('receipt');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // For portal rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    console.log("File selected:", file?.name);
     if (!file) return;
-    await uploadFile(file);
+    // Show type selector modal
+    console.log("Setting showTypeSelector to true");
+    setPendingFile(file);
+    setShowTypeSelector(true);
   };
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = async (file: File, attachmentType: AttachmentType) => {
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("attachmentType", attachmentType);
 
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/receipts`, {
@@ -39,16 +54,34 @@ export default function ReceiptUpload({
       if (response.ok) {
         onUpload();
       } else {
-        alert("Failed to upload receipt");
+        alert("Failed to upload file");
       }
     } catch (error) {
-      console.error("Error uploading receipt:", error);
-      alert("Failed to upload receipt");
+      console.error("Error uploading file:", error);
+      alert("Failed to upload file");
     } finally {
       setIsUploading(false);
+      setShowTypeSelector(false);
+      setPendingFile(null);
+      setSelectedType('receipt');
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleConfirmUpload = () => {
+    if (pendingFile) {
+      uploadFile(pendingFile, selectedType);
+    }
+  };
+
+  const handleCancelUpload = () => {
+    setShowTypeSelector(false);
+    setPendingFile(null);
+    setSelectedType('receipt');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -57,7 +90,9 @@ export default function ReceiptUpload({
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      await uploadFile(file);
+      // Show type selector modal
+      setPendingFile(file);
+      setShowTypeSelector(true);
     }
   };
 
@@ -191,9 +226,15 @@ export default function ReceiptUpload({
                     <p className="text-sm font-medium text-slate-900 truncate">
                       {receipt.filename}
                     </p>
-                    <p className="text-xs text-slate-400">
-                      {formatFileSize(receipt.size)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-full">
+                        <Tag className="w-3 h-3" />
+                        {getAttachmentTypeLabel(receipt.attachmentType)}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {formatFileSize(receipt.size)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -223,6 +264,64 @@ export default function ReceiptUpload({
           </p>
         )}
       </div>
+
+      {/* Type Selector Modal - rendered via portal */}
+      {mounted && showTypeSelector && pendingFile && createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h3 className="font-semibold text-slate-900">Select Attachment Type</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Choose a category for &quot;{pendingFile.name}&quot;
+              </p>
+            </div>
+            <div className="p-6">
+              <div className="space-y-2">
+                {ATTACHMENT_TYPES.map((type) => (
+                  <label
+                    key={type.value}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedType === type.value
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="attachmentType"
+                      value={type.value}
+                      checked={selectedType === type.value}
+                      onChange={(e) => setSelectedType(e.target.value as AttachmentType)}
+                      className="w-4 h-4 text-indigo-600"
+                    />
+                    <span className={`text-sm font-medium ${
+                      selectedType === type.value ? "text-indigo-700" : "text-slate-700"
+                    }`}>
+                      {type.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleCancelUpload}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmUpload}
+                  disabled={isUploading}
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
+                >
+                  {isUploading ? "Uploading..." : "Upload"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

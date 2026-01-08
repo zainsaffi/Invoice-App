@@ -1,4 +1,4 @@
-import { queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, UserRow, toInvoice, toInvoiceItem, toReceipt, toUser } from "@/db";
+import { queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, PaymentRow, UserRow, toInvoice, toInvoiceItem, toReceipt, toPayment } from "@/db";
 import InvoiceTable from "@/components/InvoiceTable";
 import Sidebar from "@/components/Sidebar";
 import Link from "next/link";
@@ -18,6 +18,7 @@ export default async function InvoicesPage() {
 
   let itemRows: InvoiceItemRow[] = [];
   let receiptRows: ReceiptRow[] = [];
+  let paymentRows: PaymentRow[] = [];
   let userRows: UserRow[] = [];
 
   if (invoiceIds.length > 0) {
@@ -31,6 +32,11 @@ export default async function InvoicesPage() {
 
     receiptRows = await queryMany<ReceiptRow>(
       `SELECT * FROM receipts WHERE invoice_id IN (${invoicePlaceholders})`,
+      invoiceIds
+    );
+
+    paymentRows = await queryMany<PaymentRow>(
+      `SELECT * FROM payments WHERE invoice_id IN (${invoicePlaceholders})`,
       invoiceIds
     );
   }
@@ -52,6 +58,9 @@ export default async function InvoicesPage() {
     const receipts = receiptRows
       .filter((receipt) => receipt.invoice_id === row.id)
       .map(toReceipt);
+    const payments = paymentRows
+      .filter((payment) => payment.invoice_id === row.id)
+      .map(toPayment);
     const userRow = userRows.find((u) => u.id === row.user_id);
     const user = userRow
       ? {
@@ -61,7 +70,7 @@ export default async function InvoicesPage() {
           currency: userRow.currency,
         }
       : undefined;
-    return { ...invoice, items, receipts, user };
+    return { ...invoice, items, receipts, payments, user };
   });
 
   return (

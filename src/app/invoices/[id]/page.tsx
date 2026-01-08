@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import { Invoice } from "@/types/invoice";
+import { Invoice, AttachmentType, ATTACHMENT_TYPES, getAttachmentTypeLabel } from "@/types/invoice";
 import { formatCurrency, formatDate, getDisplayStatus, getDisplayStatusBadge } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -22,6 +22,11 @@ import {
   User,
   Paperclip,
   Clock,
+  Plus,
+  DollarSign,
+  CheckCircle,
+  AlertCircle,
+  Tag,
 } from "lucide-react";
 
 export default function InvoiceDetailPage({
@@ -36,6 +41,19 @@ export default function InvoiceDetailPage({
   const [isSending, setIsSending] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    paymentMethod: "",
+    reference: "",
+    notes: "",
+    paidAt: new Date().toISOString().split("T")[0],
+  });
+  const [showAttachmentTypeModal, setShowAttachmentTypeModal] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [selectedAttachmentType, setSelectedAttachmentType] = useState<AttachmentType>('receipt');
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
   const fetchInvoice = async () => {
     try {
@@ -153,12 +171,23 @@ export default function InvoiceDetailPage({
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPendingFile(file);
+    setSelectedAttachmentType('receipt');
+    setShowAttachmentTypeModal(true);
+    // Reset the input so the same file can be selected again
+    e.target.value = '';
+  };
 
+  const handleConfirmAttachmentUpload = async () => {
+    if (!pendingFile) return;
+
+    setIsUploadingAttachment(true);
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", pendingFile);
+    formData.append("attachmentType", selectedAttachmentType);
 
     try {
       const response = await fetch(`/api/invoices/${id}/receipts`, {
@@ -168,13 +197,24 @@ export default function InvoiceDetailPage({
 
       if (response.ok) {
         fetchInvoice();
+        setShowAttachmentTypeModal(false);
+        setPendingFile(null);
+        setSelectedAttachmentType('receipt');
       } else {
         alert("Failed to upload file");
       }
     } catch (error) {
       console.error("Error uploading file:", error);
       alert("Failed to upload file");
+    } finally {
+      setIsUploadingAttachment(false);
     }
+  };
+
+  const handleCancelAttachmentUpload = () => {
+    setShowAttachmentTypeModal(false);
+    setPendingFile(null);
+    setSelectedAttachmentType('receipt');
   };
 
   const handleDeleteReceipt = async (receiptId: string) => {
@@ -193,6 +233,77 @@ export default function InvoiceDetailPage({
       }
     } catch (error) {
       console.error("Error deleting attachment:", error);
+    }
+  };
+
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoice) return;
+
+    const amount = parseFloat(paymentForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    const remaining = invoice.total - (invoice.amountPaid || 0);
+    if (amount > remaining) {
+      alert(`Amount cannot exceed remaining balance of ${formatCurrency(remaining)}`);
+      return;
+    }
+
+    setIsAddingPayment(true);
+    try {
+      const response = await fetch(`/api/invoices/${id}/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          paymentMethod: paymentForm.paymentMethod || null,
+          reference: paymentForm.reference || null,
+          notes: paymentForm.notes || null,
+          paidAt: paymentForm.paidAt ? new Date(paymentForm.paidAt).toISOString() : null,
+        }),
+      });
+
+      if (response.ok) {
+        setShowPaymentModal(false);
+        setPaymentForm({
+          amount: "",
+          paymentMethod: "",
+          reference: "",
+          notes: "",
+          paidAt: new Date().toISOString().split("T")[0],
+        });
+        fetchInvoice();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to add payment");
+      }
+    } catch (error) {
+      console.error("Error adding payment:", error);
+      alert("Failed to add payment");
+    } finally {
+      setIsAddingPayment(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm("Are you sure you want to delete this payment?")) return;
+
+    try {
+      const response = await fetch(
+        `/api/invoices/${id}/payments?paymentId=${paymentId}`,
+        { method: "DELETE" }
+      );
+
+      if (response.ok) {
+        fetchInvoice();
+      } else {
+        alert("Failed to delete payment");
+      }
+    } catch (error) {
+      console.error("Error deleting payment:", error);
     }
   };
 
@@ -431,7 +542,7 @@ export default function InvoiceDetailPage({
                     type="file"
                     className="hidden"
                     accept=".pdf,.png,.jpg,.jpeg"
-                    onChange={handleFileUpload}
+                    onChange={handleFileSelect}
                   />
                 </label>
 
@@ -448,9 +559,15 @@ export default function InvoiceDetailPage({
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{receipt.filename}</p>
-                            <p className="text-xs text-gray-500">
-                              {(receipt.size / 1024).toFixed(1)} KB
-                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-full">
+                                <Tag className="w-3 h-3" />
+                                {getAttachmentTypeLabel(receipt.attachmentType)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {(receipt.size / 1024).toFixed(1)} KB
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -542,6 +659,131 @@ export default function InvoiceDetailPage({
                 </div>
               </div>
 
+              {/* Payment Instructions */}
+              {invoice.paymentInstructions && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Payment Instructions</h2>
+                      <p className="text-sm text-gray-500">How to pay this invoice</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{invoice.paymentInstructions}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Progress */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Payment Status</h2>
+                  {displayStatus !== "paid" && displayStatus !== "cancelled" && (
+                    <button
+                      onClick={() => setShowPaymentModal(true)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Payment
+                    </button>
+                  )}
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-500">Paid</span>
+                    <span className="font-medium text-gray-900">
+                      {formatCurrency(invoice.amountPaid || 0)} / {formatCurrency(invoice.total)}
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        (invoice.amountPaid || 0) >= invoice.total
+                          ? "bg-green-500"
+                          : (invoice.amountPaid || 0) > 0
+                          ? "bg-yellow-500"
+                          : "bg-gray-200"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, ((invoice.amountPaid || 0) / invoice.total) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  {(invoice.amountPaid || 0) > 0 && (invoice.amountPaid || 0) < invoice.total && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Remaining: {formatCurrency(invoice.total - (invoice.amountPaid || 0))}
+                    </p>
+                  )}
+                </div>
+
+                {/* Payment History */}
+                {invoice.payments && invoice.payments.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-gray-200">
+                    <p className="text-xs font-medium text-gray-500 uppercase">Payment History</p>
+                    {invoice.payments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-start justify-between p-3 bg-gray-50 rounded-lg group"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <DollarSign className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {formatCurrency(payment.amount)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatDate(payment.paidAt)}
+                              {payment.paymentMethod && ` • ${payment.paymentMethod}`}
+                            </p>
+                            {payment.reference && (
+                              <p className="text-xs text-gray-400">Ref: {payment.reference}</p>
+                            )}
+                            {payment.notes && (
+                              <p className="text-xs text-gray-400 mt-1">{payment.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeletePayment(payment.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Status indicator */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    {(invoice.amountPaid || 0) >= invoice.total ? (
+                      <>
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                        <span className="text-sm font-medium text-green-700">Paid in Full</span>
+                      </>
+                    ) : (invoice.amountPaid || 0) > 0 ? (
+                      <>
+                        <AlertCircle className="w-5 h-5 text-yellow-500" />
+                        <span className="text-sm font-medium text-yellow-700">Partially Paid</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-5 h-5 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-500">Awaiting Payment</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Quick Stats */}
               <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
@@ -554,6 +796,10 @@ export default function InvoiceDetailPage({
                     <span className="text-sm text-gray-500">Attachments</span>
                     <span className="text-sm font-semibold text-gray-900">{invoice.receipts.length}</span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Payments</span>
+                    <span className="text-sm font-semibold text-gray-900">{invoice.payments?.length || 0}</span>
+                  </div>
                   <div className="pt-4 border-t border-gray-200">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-gray-900">Total Amount</span>
@@ -565,6 +811,186 @@ export default function InvoiceDetailPage({
             </div>
           </div>
         </div>
+
+        {/* Add Payment Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Record Payment</h3>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleAddPayment} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Amount <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={invoice.total - (invoice.amountPaid || 0)}
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                      required
+                      className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Remaining balance: {formatCurrency(invoice.total - (invoice.amountPaid || 0))}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Date
+                  </label>
+                  <input
+                    type="date"
+                    value={paymentForm.paidAt}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paidAt: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Method
+                  </label>
+                  <select
+                    value={paymentForm.paymentMethod}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">Select method...</option>
+                    <option value="cash">Cash</option>
+                    <option value="check">Check</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="paypal">PayPal</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reference Number
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentForm.reference}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    placeholder="e.g., Check #1234"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Notes
+                  </label>
+                  <textarea
+                    value={paymentForm.notes}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                    rows={2}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+                    placeholder="Optional notes..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowPaymentModal(false)}
+                    className="flex-1 px-4 py-2.5 text-gray-700 text-sm font-medium rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isAddingPayment}
+                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isAddingPayment ? "Recording..." : "Record Payment"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Attachment Type Modal */}
+        {showAttachmentTypeModal && pendingFile && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Select Attachment Type</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Choose a category for &quot;{pendingFile.name}&quot;
+                  </p>
+                </div>
+                <button
+                  onClick={handleCancelAttachmentUpload}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="space-y-2">
+                  {ATTACHMENT_TYPES.map((type) => (
+                    <label
+                      key={type.value}
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        selectedAttachmentType === type.value
+                          ? "border-indigo-500 bg-indigo-50"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="attachmentType"
+                        value={type.value}
+                        checked={selectedAttachmentType === type.value}
+                        onChange={(e) => setSelectedAttachmentType(e.target.value as AttachmentType)}
+                        className="w-4 h-4 text-indigo-600"
+                      />
+                      <span className={`text-sm font-medium ${
+                        selectedAttachmentType === type.value ? "text-indigo-700" : "text-gray-700"
+                      }`}>
+                        {type.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleCancelAttachmentUpload}
+                    className="flex-1 px-4 py-2.5 text-gray-700 text-sm font-medium rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmAttachmentUpload}
+                    disabled={isUploadingAttachment}
+                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isUploadingAttachment ? "Uploading..." : "Upload"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

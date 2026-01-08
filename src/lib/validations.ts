@@ -72,6 +72,11 @@ export const createInvoiceSchema = z.object({
       },
       { message: "Invalid date format" }
     ),
+  paymentInstructions: z
+    .string()
+    .max(2000, "Payment instructions must be less than 2000 characters")
+    .trim()
+    .optional(),
 });
 
 // Update invoice schema (includes invoiceNumber)
@@ -82,6 +87,39 @@ export const updateInvoiceSchema = createInvoiceSchema.extend({
     .max(50, "Invoice number must be less than 50 characters")
     .trim()
     .optional(),
+});
+
+// Partial payment schema
+export const partialPaymentSchema = z.object({
+  amount: z
+    .number()
+    .min(0.01, "Amount must be at least $0.01")
+    .max(999999.99, "Amount must be less than $999,999.99"),
+  paymentMethod: z
+    .string()
+    .max(50, "Payment method must be less than 50 characters")
+    .optional(),
+  reference: z
+    .string()
+    .max(255, "Reference must be less than 255 characters")
+    .trim()
+    .optional(),
+  notes: z
+    .string()
+    .max(1000, "Notes must be less than 1000 characters")
+    .trim()
+    .optional(),
+  paidAt: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        const date = new Date(val);
+        return !isNaN(date.getTime());
+      },
+      { message: "Invalid date format" }
+    ),
 });
 
 // Payment schema

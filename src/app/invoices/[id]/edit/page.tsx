@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { Invoice, InvoiceFormData } from "@/types/invoice";
-import { ArrowLeft, Plus, Trash2, User, FileText, Package } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User, FileText, Package, CreditCard } from "lucide-react";
 
 export default function EditInvoicePage({
   params,
@@ -27,6 +27,7 @@ export default function EditInvoicePage({
     items: [{ description: "", quantity: 1, unitPrice: 0 }],
     tax: 0,
     dueDate: "",
+    paymentInstructions: "",
   });
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function EditInvoicePage({
             dueDate: data.dueDate
               ? new Date(data.dueDate).toISOString().split("T")[0]
               : "",
+            paymentInstructions: data.paymentInstructions || "",
           });
         }
       } catch (error) {
@@ -132,7 +134,8 @@ export default function EditInvoicePage({
       if (response.ok) {
         router.push(`/invoices/${id}`);
       } else {
-        alert("Failed to update invoice");
+        const data = await response.json();
+        alert(data.error || "Failed to update invoice");
       }
     } catch (error) {
       console.error("Error updating invoice:", error);
@@ -316,6 +319,35 @@ export default function EditInvoicePage({
                         placeholder="Invoice description"
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* Payment Instructions */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Payment Instructions</h2>
+                      <p className="text-sm text-gray-500">How should clients pay?</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Details
+                    </label>
+                    <textarea
+                      name="paymentInstructions"
+                      value={formData.paymentInstructions}
+                      onChange={handleChange}
+                      rows={4}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm resize-none transition-all"
+                      placeholder="e.g., Bank transfer to Account #1234567890, PayPal to email@example.com, etc."
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      These instructions will appear on the invoice and be visible to the client.
+                    </p>
                   </div>
                 </div>
 

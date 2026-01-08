@@ -6,12 +6,40 @@ export interface InvoiceItem {
   total?: number;
 }
 
+export type AttachmentType = 'receipt' | 'contract' | 'quote' | 'supporting_document' | 'photo' | 'other';
+
+export const ATTACHMENT_TYPES: { value: AttachmentType; label: string }[] = [
+  { value: 'receipt', label: 'Receipt' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'quote', label: 'Quote' },
+  { value: 'supporting_document', label: 'Supporting Document' },
+  { value: 'photo', label: 'Photo' },
+  { value: 'other', label: 'Other' },
+];
+
+export function getAttachmentTypeLabel(type: AttachmentType | string): string {
+  const found = ATTACHMENT_TYPES.find(t => t.value === type);
+  return found?.label || 'Other';
+}
+
 export interface Receipt {
   id: string;
   filename: string;
   filepath: string;
   mimeType: string;
   size: number;
+  attachmentType: AttachmentType | string;
+  createdAt: string | Date;
+}
+
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  paymentMethod: string | null;
+  reference: string | null;
+  notes: string | null;
+  paidAt: string | Date;
   createdAt: string | Date;
 }
 
@@ -40,6 +68,9 @@ export interface Invoice {
   paidAt: string | Date | null;
   paymentMethod: string | null;
   receipts: Receipt[];
+  payments: Payment[];
+  amountPaid: number;
+  paymentInstructions: string | null;
   dueDate: string | Date | null;
   createdAt: string | Date;
   updatedAt: string | Date;
@@ -56,4 +87,5 @@ export interface InvoiceFormData {
   items: InvoiceItem[];
   tax: number;
   dueDate: string;
+  paymentInstructions?: string;
 }

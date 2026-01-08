@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { InvoiceFormData } from "@/types/invoice";
-import { ArrowLeft, Plus, Trash2, User, FileText, Package } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User, FileText, Package, CreditCard } from "lucide-react";
 
 export default function NewInvoicePage() {
   const router = useRouter();
@@ -19,6 +19,7 @@ export default function NewInvoicePage() {
     items: [{ description: "", quantity: 1, unitPrice: 0 }],
     tax: 0,
     dueDate: "",
+    paymentInstructions: "",
   });
 
   const handleChange = (
@@ -317,6 +318,35 @@ export default function NewInvoicePage() {
                     <Plus className="w-4 h-4" />
                     Add Line Item
                   </button>
+                </div>
+
+                {/* Payment Instructions */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Payment Instructions</h2>
+                      <p className="text-sm text-gray-500">How should the client pay?</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Instructions
+                    </label>
+                    <textarea
+                      name="paymentInstructions"
+                      value={formData.paymentInstructions || ""}
+                      onChange={handleChange}
+                      rows={4}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm resize-none transition-all"
+                      placeholder="e.g., Please pay via bank transfer to Account #123456789 at ABC Bank. Reference: Your invoice number."
+                    />
+                    <p className="text-xs text-gray-400 mt-2">
+                      These instructions will appear on the invoice and in emails sent to the client.
+                    </p>
+                  </div>
                 </div>
               </div>
 
