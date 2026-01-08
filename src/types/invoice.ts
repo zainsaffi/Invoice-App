@@ -1,9 +1,21 @@
 export interface InvoiceItem {
   id?: string;
+  title: string;
   description: string;
   quantity: number;
   unitPrice: number;
   total?: number;
+}
+
+export type ItemTemplateType = 'title' | 'description';
+
+export interface ItemTemplate {
+  id: string;
+  type: ItemTemplateType;
+  content: string;
+  usageCount: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export type AttachmentType = 'receipt' | 'contract' | 'quote' | 'supporting_document' | 'photo' | 'other';

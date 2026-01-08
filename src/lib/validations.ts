@@ -5,11 +5,17 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Invoice item schema
 export const invoiceItemSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title must be less than 200 characters")
+    .trim(),
   description: z
     .string()
-    .min(1, "Description is required")
-    .max(500, "Description must be less than 500 characters")
-    .trim(),
+    .max(2000, "Description must be less than 2000 characters")
+    .trim()
+    .optional()
+    .default(""),
   quantity: z
     .number()
     .min(1, "Quantity must be at least 1")
@@ -18,6 +24,16 @@ export const invoiceItemSchema = z.object({
     .number()
     .min(0, "Unit price cannot be negative")
     .max(999999.99, "Unit price must be less than $999,999.99"),
+});
+
+// Item template schema
+export const itemTemplateSchema = z.object({
+  type: z.enum(["title", "description"], { message: "Type must be 'title' or 'description'" }),
+  content: z
+    .string()
+    .min(1, "Content is required")
+    .max(2000, "Content must be less than 2000 characters")
+    .trim(),
 });
 
 // Create invoice schema

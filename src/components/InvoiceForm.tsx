@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, User, FileText, Package } from "lucide-react";
-import { InvoiceFormData, InvoiceItem } from "@/types/invoice";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Trash2, User, FileText, Package, ChevronDown, Save } from "lucide-react";
+import { InvoiceFormData, InvoiceItem, ItemTemplate, ItemTemplateType } from "@/types/invoice";
 
 interface InvoiceFormProps {
   initialData?: InvoiceFormData;
@@ -10,7 +10,13 @@ interface InvoiceFormProps {
   isLoading?: boolean;
 }
 
+interface ItemSaveFlags {
+  saveTitle: boolean;
+  saveDescription: boolean;
+}
+
 const emptyItem: InvoiceItem = {
+  title: "",
   description: "",
   quantity: 1,
   unitPrice: 0,
@@ -33,6 +39,56 @@ export default function InvoiceForm({
       dueDate: "",
     }
   );
+
+  // Template state
+  const [titleTemplates, setTitleTemplates] = useState<ItemTemplate[]>([]);
+  const [descriptionTemplates, setDescriptionTemplates] = useState<ItemTemplate[]>([]);
+  const [itemSaveFlags, setItemSaveFlags] = useState<ItemSaveFlags[]>([{ saveTitle: false, saveDescription: false }]);
+  const [openDropdown, setOpenDropdown] = useState<{ index: number; type: 'title' | 'description' } | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch templates on mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const [titlesRes, descriptionsRes] = await Promise.all([
+          fetch('/api/item-templates?type=title'),
+          fetch('/api/item-templates?type=description'),
+        ]);
+        if (titlesRes.ok) {
+          const titles = await titlesRes.json();
+          setTitleTemplates(titles);
+        }
+        if (descriptionsRes.ok) {
+          const descriptions = await descriptionsRes.json();
+          setDescriptionTemplates(descriptions);
+        }
+      } catch (error) {
+        console.error('Error fetching templates:', error);
+      }
+    };
+    fetchTemplates();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Initialize save flags when items change
+  useEffect(() => {
+    if (formData.items.length !== itemSaveFlags.length) {
+      setItemSaveFlags(formData.items.map((_, i) =>
+        itemSaveFlags[i] || { saveTitle: false, saveDescription: false }
+      ));
+    }
+  }, [formData.items.length]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -65,6 +121,7 @@ export default function InvoiceForm({
       ...prev,
       items: [...prev.items, { ...emptyItem }],
     }));
+    setItemSaveFlags((prev) => [...prev, { saveTitle: false, saveDescription: false }]);
   };
 
   const removeItem = (index: number) => {
@@ -73,7 +130,21 @@ export default function InvoiceForm({
         ...prev,
         items: prev.items.filter((_, i) => i !== index),
       }));
+      setItemSaveFlags((prev) => prev.filter((_, i) => i !== index));
     }
+  };
+
+  const toggleSaveFlag = (index: number, field: 'saveTitle' | 'saveDescription') => {
+    setItemSaveFlags((prev) => {
+      const newFlags = [...prev];
+      newFlags[index] = { ...newFlags[index], [field]: !newFlags[index][field] };
+      return newFlags;
+    });
+  };
+
+  const selectTemplate = (index: number, type: 'title' | 'description', content: string) => {
+    handleItemChange(index, type, content);
+    setOpenDropdown(null);
   };
 
   const calculateSubtotal = () => {
@@ -89,6 +160,36 @@ export default function InvoiceForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Save templates for items with "Save for future use" checked
+    const savePromises: Promise<Response>[] = [];
+    formData.items.forEach((item, index) => {
+      const flags = itemSaveFlags[index];
+      if (flags?.saveTitle && item.title.trim()) {
+        savePromises.push(
+          fetch('/api/item-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'title', content: item.title.trim() }),
+          })
+        );
+      }
+      if (flags?.saveDescription && item.description.trim()) {
+        savePromises.push(
+          fetch('/api/item-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'description', content: item.description.trim() }),
+          })
+        );
+      }
+    });
+
+    // Save templates in parallel (don't block invoice submission)
+    if (savePromises.length > 0) {
+      Promise.all(savePromises).catch((err) => console.error('Error saving templates:', err));
+    }
+
     await onSubmit(formData);
   };
 
@@ -229,9 +330,9 @@ export default function InvoiceForm({
           <div className="space-y-4">
             {/* Header */}
             <div className="hidden md:grid grid-cols-12 gap-4 text-xs font-medium text-slate-500 uppercase tracking-wide px-1">
-              <div className="col-span-5">Description</div>
+              <div className="col-span-6">Item Details</div>
               <div className="col-span-2">Quantity</div>
-              <div className="col-span-2">Unit Price</div>
+              <div className="col-span-1">Unit Price</div>
               <div className="col-span-2">Total</div>
               <div className="col-span-1"></div>
             </div>
@@ -240,76 +341,194 @@ export default function InvoiceForm({
             {formData.items.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-12 gap-4 items-center p-4 bg-slate-50 rounded-xl border border-slate-100"
+                className="p-4 bg-slate-50 rounded-xl border border-slate-100"
               >
-                <div className="col-span-12 md:col-span-5">
-                  <label className="md:hidden text-xs font-medium text-slate-500 mb-1 block">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    value={item.description}
-                    onChange={(e) =>
-                      handleItemChange(index, "description", e.target.value)
-                    }
-                    required
-                    placeholder="Item description"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400"
-                  />
-                </div>
-                <div className="col-span-4 md:col-span-2">
-                  <label className="md:hidden text-xs font-medium text-slate-500 mb-1 block">
-                    Qty
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      handleItemChange(index, "quantity", e.target.value)
-                    }
-                    required
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-                  />
-                </div>
-                <div className="col-span-4 md:col-span-2">
-                  <label className="md:hidden text-xs font-medium text-slate-500 mb-1 block">
-                    Price
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) =>
-                        handleItemChange(index, "unitPrice", e.target.value)
-                      }
-                      required
-                      className="w-full pl-7 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
+                <div className="grid grid-cols-12 gap-4">
+                  {/* Title and Description - stacked */}
+                  <div className="col-span-12 md:col-span-6 space-y-3" ref={openDropdown?.index === index ? dropdownRef : undefined}>
+                    {/* Title Field */}
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-1 block">
+                        Title <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={item.title}
+                          onChange={(e) =>
+                            handleItemChange(index, "title", e.target.value)
+                          }
+                          required
+                          placeholder="e.g., Flight Charter"
+                          className="w-full px-4 py-2.5 pr-10 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400"
+                        />
+                        {titleTemplates.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setOpenDropdown(
+                              openDropdown?.index === index && openDropdown?.type === 'title'
+                                ? null
+                                : { index, type: 'title' }
+                            )}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Title Dropdown */}
+                        {openDropdown?.index === index && openDropdown?.type === 'title' && titleTemplates.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {titleTemplates.map((template) => (
+                              <button
+                                key={template.id}
+                                type="button"
+                                onClick={() => selectTemplate(index, 'title', template.content)}
+                                className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 flex justify-between items-center"
+                              >
+                                <span className="truncate">{template.content}</span>
+                                <span className="text-xs text-slate-400 ml-2">({template.usageCount})</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {/* Save Title Checkbox */}
+                      <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={itemSaveFlags[index]?.saveTitle || false}
+                          onChange={() => toggleSaveFlag(index, 'saveTitle')}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Save className="w-3 h-3" />
+                          Save title for future use
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Description Field */}
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-1 block">
+                        Description
+                      </label>
+                      <div className="relative">
+                        <textarea
+                          value={item.description}
+                          onChange={(e) =>
+                            handleItemChange(index, "description", e.target.value)
+                          }
+                          rows={3}
+                          placeholder="Detailed description (optional)"
+                          className="w-full px-4 py-2.5 pr-10 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400 resize-none"
+                        />
+                        {descriptionTemplates.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setOpenDropdown(
+                              openDropdown?.index === index && openDropdown?.type === 'description'
+                                ? null
+                                : { index, type: 'description' }
+                            )}
+                            className="absolute right-2 top-2.5 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Description Dropdown */}
+                        {openDropdown?.index === index && openDropdown?.type === 'description' && descriptionTemplates.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {descriptionTemplates.map((template) => (
+                              <button
+                                key={template.id}
+                                type="button"
+                                onClick={() => selectTemplate(index, 'description', template.content)}
+                                className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <span className="whitespace-pre-wrap text-xs">{template.content.length > 100 ? template.content.substring(0, 100) + '...' : template.content}</span>
+                                  <span className="text-xs text-slate-400 ml-2 flex-shrink-0">({template.usageCount})</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {/* Save Description Checkbox */}
+                      <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={itemSaveFlags[index]?.saveDescription || false}
+                          onChange={() => toggleSaveFlag(index, 'saveDescription')}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Save className="w-3 h-3" />
+                          Save description for future use
+                        </span>
+                      </label>
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-3 md:col-span-2">
-                  <label className="md:hidden text-xs font-medium text-slate-500 mb-1 block">
-                    Total
-                  </label>
-                  <div className="px-4 py-2.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-900">
-                    ${(item.quantity * item.unitPrice).toFixed(2)}
+
+                  {/* Quantity, Price, Total, Delete */}
+                  <div className="col-span-12 md:col-span-6">
+                    <div className="grid grid-cols-12 gap-4 items-start">
+                      <div className="col-span-4 md:col-span-4">
+                        <label className="text-xs font-medium text-slate-500 mb-1 block">
+                          Qty
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handleItemChange(index, "quantity", e.target.value)
+                          }
+                          required
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                      </div>
+                      <div className="col-span-4 md:col-span-3">
+                        <label className="text-xs font-medium text-slate-500 mb-1 block">
+                          Price
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                            $
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              handleItemChange(index, "unitPrice", e.target.value)
+                            }
+                            required
+                            className="w-full pl-7 pr-2 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                          />
+                        </div>
+                      </div>
+                      <div className="col-span-3 md:col-span-4">
+                        <label className="text-xs font-medium text-slate-500 mb-1 block">
+                          Total
+                        </label>
+                        <div className="px-4 py-2.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-900">
+                          ${(item.quantity * item.unitPrice).toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="col-span-1 flex justify-center items-end pb-2.5">
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          disabled={formData.items.length === 1}
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-1 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    disabled={formData.items.length === 1}
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
             ))}

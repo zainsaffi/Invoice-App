@@ -24,7 +24,7 @@ export default function EditInvoicePage({
     clientBusinessName: "",
     clientAddress: "",
     description: "",
-    items: [{ description: "", quantity: 1, unitPrice: 0 }],
+    items: [{ title: "", description: "", quantity: 1, unitPrice: 0 }],
     tax: 0,
     dueDate: "",
     paymentInstructions: "",
@@ -44,7 +44,8 @@ export default function EditInvoicePage({
             clientBusinessName: data.clientBusinessName || "",
             clientAddress: data.clientAddress || "",
             description: data.description,
-            items: data.items.map((item: { description: string; quantity: number; unitPrice: number }) => ({
+            items: data.items.map((item: { title: string; description: string; quantity: number; unitPrice: number }) => ({
+              title: item.title || "",
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
@@ -95,7 +96,7 @@ export default function EditInvoicePage({
   const addItem = () => {
     setFormData((prev) => ({
       ...prev,
-      items: [...prev.items, { description: "", quantity: 1, unitPrice: 0 }],
+      items: [...prev.items, { title: "", description: "", quantity: 1, unitPrice: 0 }],
     }));
   };
 
@@ -365,9 +366,9 @@ export default function EditInvoicePage({
 
                   {/* Table Header */}
                   <div className="grid grid-cols-12 gap-4 mb-3 text-xs font-semibold text-gray-500 uppercase tracking-wide px-2">
-                    <div className="col-span-5">Description</div>
+                    <div className="col-span-6">Item Details</div>
                     <div className="col-span-2">Qty</div>
-                    <div className="col-span-2">Price</div>
+                    <div className="col-span-1">Price</div>
                     <div className="col-span-2">Total</div>
                     <div className="col-span-1"></div>
                   </div>
@@ -375,55 +376,90 @@ export default function EditInvoicePage({
                   {/* Items */}
                   <div className="space-y-3">
                     {formData.items.map((item, index) => (
-                      <div key={index} className="grid grid-cols-12 gap-4 items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-                        <div className="col-span-5">
-                          <input
-                            type="text"
-                            value={item.description}
-                            onChange={(e) => handleItemChange(index, "description", e.target.value)}
-                            required
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                            placeholder="Item description"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                            required
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.unitPrice}
-                              onChange={(e) => handleItemChange(index, "unitPrice", e.target.value)}
-                              required
-                              className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                            />
+                      <div key={index} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="grid grid-cols-12 gap-4">
+                          {/* Title and Description */}
+                          <div className="col-span-12 md:col-span-6 space-y-3">
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                Title <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => handleItemChange(index, "title", e.target.value)}
+                                required
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                placeholder="e.g., Flight Charter"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                Description
+                              </label>
+                              <textarea
+                                value={item.description}
+                                onChange={(e) => handleItemChange(index, "description", e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+                                placeholder="Detailed description (optional)"
+                              />
+                            </div>
                           </div>
-                        </div>
-                        <div className="col-span-2">
-                          <div className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900">
-                            ${(item.quantity * item.unitPrice).toFixed(2)}
+
+                          {/* Quantity, Price, Total, Delete */}
+                          <div className="col-span-12 md:col-span-6">
+                            <div className="grid grid-cols-12 gap-4 items-start">
+                              <div className="col-span-4 md:col-span-4">
+                                <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                  Qty
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                                  required
+                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                />
+                              </div>
+                              <div className="col-span-4 md:col-span-3">
+                                <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                  Price
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.unitPrice}
+                                    onChange={(e) => handleItemChange(index, "unitPrice", e.target.value)}
+                                    required
+                                    className="w-full pl-7 pr-2 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div className="col-span-3 md:col-span-4">
+                                <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                  Total
+                                </label>
+                                <div className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-900">
+                                  ${(item.quantity * item.unitPrice).toFixed(2)}
+                                </div>
+                              </div>
+                              <div className="col-span-1 flex justify-center items-end pb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(index)}
+                                  disabled={formData.items.length === 1}
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="col-span-1 flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            disabled={formData.items.length === 1}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
                     ))}

@@ -148,11 +148,22 @@ export interface PaymentRow {
 
 export interface InvoiceItemRow {
   id: string;
+  title: string;
   description: string;
   quantity: number;
   unit_price: number;
   total: number;
   invoice_id: string;
+}
+
+export interface ItemTemplateRow {
+  id: string;
+  user_id: string;
+  type: 'title' | 'description';
+  content: string;
+  usage_count: number;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface ReceiptRow {
@@ -260,11 +271,25 @@ export function toUser(row: UserRow) {
 export function toInvoiceItem(row: InvoiceItemRow) {
   return {
     id: row.id,
+    title: row.title,
     description: row.description,
     quantity: Number(row.quantity),
     unitPrice: Number(row.unit_price),
     total: Number(row.total),
     invoiceId: row.invoice_id,
+  };
+}
+
+// Convert item template row to camelCase
+export function toItemTemplate(row: ItemTemplateRow) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    type: row.type,
+    content: row.content,
+    usageCount: row.usage_count,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

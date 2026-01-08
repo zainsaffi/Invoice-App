@@ -481,7 +481,7 @@ export default function InvoiceDetailPage({
                   <table className="w-full">
                     <thead>
                       <tr className="text-xs font-semibold text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
-                        <th className="text-left px-4 py-3">Description</th>
+                        <th className="text-left px-4 py-3">Item</th>
                         <th className="text-right px-4 py-3">Qty</th>
                         <th className="text-right px-4 py-3">Price</th>
                         <th className="text-right px-4 py-3">Total</th>
@@ -490,10 +490,15 @@ export default function InvoiceDetailPage({
                     <tbody className="divide-y divide-gray-100">
                       {invoice.items.map((item) => (
                         <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-4 text-sm text-gray-900">{item.description}</td>
-                          <td className="px-4 py-4 text-sm text-gray-600 text-right">{item.quantity}</td>
-                          <td className="px-4 py-4 text-sm text-gray-600 text-right">{formatCurrency(item.unitPrice)}</td>
-                          <td className="px-4 py-4 text-sm font-medium text-gray-900 text-right">{formatCurrency(item.total || 0)}</td>
+                          <td className="px-4 py-4">
+                            <p className="text-sm font-medium text-gray-900">{item.title || "Item"}</p>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-1 whitespace-pre-line">{item.description}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-gray-600 text-right align-top">{item.quantity}</td>
+                          <td className="px-4 py-4 text-sm text-gray-600 text-right align-top">{formatCurrency(item.unitPrice)}</td>
+                          <td className="px-4 py-4 text-sm font-medium text-gray-900 text-right align-top">{formatCurrency(item.total || 0)}</td>
                         </tr>
                       ))}
                     </tbody>

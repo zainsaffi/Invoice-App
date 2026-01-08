@@ -191,12 +191,13 @@ export async function PUT(
     // Insert new items
     for (const item of items) {
       await query(
-        `INSERT INTO invoice_items (id, invoice_id, description, quantity, unit_price, total)
-        VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO invoice_items (id, invoice_id, title, description, quantity, unit_price, total)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           uuid(),
           id,
-          item.description,
+          item.title,
+          item.description || "",
           item.quantity,
           item.unitPrice,
           item.quantity * item.unitPrice,

@@ -188,6 +188,31 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#111827",
   },
+  itemTitle: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  itemDescription: {
+    fontSize: 9,
+    color: "#6B7280",
+    lineHeight: 1.4,
+  },
+  itemDescriptionLine: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 2,
+  },
+  itemDescriptionLabel: {
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: "#374151",
+  },
+  itemDescriptionValue: {
+    fontSize: 9,
+    color: "#6B7280",
+  },
   // Totals section
   totalsContainer: {
     flexDirection: "row",
@@ -426,6 +451,44 @@ function isImageFile(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
+// Helper to render item description with labels in bold
+function renderFormattedDescription(description: string, styles: any): React.ReactElement[] {
+  const lines = description.split('\n').filter(line => line.trim() !== '');
+
+  return lines.map((line, lineIndex) => {
+    // Check if the line has a label pattern (text followed by colon)
+    const colonIndex = line.indexOf(':');
+
+    if (colonIndex > 0 && colonIndex < 30) {
+      // This line has a label - split into label and value
+      const label = line.substring(0, colonIndex + 1); // Include the colon
+      const value = line.substring(colonIndex + 1).trim();
+
+      return React.createElement(
+        View,
+        { key: lineIndex, style: styles.itemDescriptionLine },
+        React.createElement(Text, { style: styles.itemDescriptionLabel }, label + ' '),
+        value && React.createElement(Text, { style: styles.itemDescriptionValue }, value)
+      );
+    } else {
+      // Regular line without label - just render as normal text
+      return React.createElement(
+        View,
+        { key: lineIndex, style: styles.itemDescriptionLine },
+        React.createElement(Text, { style: styles.itemDescriptionValue }, line)
+      );
+    }
+  });
+}
+
+// Helper to render multi-line text (preserves line breaks)
+function renderMultilineText(text: string, textStyle: any): React.ReactElement[] {
+  const lines = text.split('\n');
+  return lines.map((line, index) =>
+    React.createElement(Text, { key: index, style: textStyle }, line || ' ')
+  );
+}
+
 // Get attachment type label for PDF
 function getAttachmentTypeLabel(type: string): string {
   const labels: Record<string, string> = {
@@ -557,7 +620,7 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
           View,
           { style: styles.descriptionSection },
           React.createElement(Text, { style: styles.descriptionLabel }, "Description"),
-          React.createElement(Text, { style: styles.descriptionText }, invoice.description)
+          ...renderMultilineText(invoice.description, styles.descriptionText)
         ),
         // Items Table
         React.createElement(
@@ -567,7 +630,7 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
           React.createElement(
             View,
             { style: styles.tableHeader },
-            React.createElement(Text, { style: [styles.tableHeaderText, styles.tableCol1] }, "Description"),
+            React.createElement(Text, { style: [styles.tableHeaderText, styles.tableCol1] }, "Item"),
             React.createElement(Text, { style: [styles.tableHeaderText, styles.tableCol2] }, "Qty"),
             React.createElement(Text, { style: [styles.tableHeaderText, styles.tableCol3] }, "Unit Price"),
             React.createElement(Text, { style: [styles.tableHeaderText, styles.tableCol4] }, "Amount")
@@ -577,7 +640,16 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
             React.createElement(
               View,
               { key: index, style: [styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}] },
-              React.createElement(Text, { style: [styles.tableText, styles.tableCol1] }, item.description),
+              React.createElement(
+                View,
+                { style: styles.tableCol1 },
+                React.createElement(Text, { style: styles.itemTitle }, item.title || "Item"),
+                item.description && React.createElement(
+                  View,
+                  { style: { marginTop: 4 } },
+                  ...renderFormattedDescription(item.description, styles)
+                )
+              ),
               React.createElement(Text, { style: [styles.tableText, styles.tableCol2] }, item.quantity.toString()),
               React.createElement(Text, { style: [styles.tableText, styles.tableCol3] }, formatCurrency(item.unitPrice)),
               React.createElement(Text, { style: [styles.tableTextBold, styles.tableCol4] }, formatCurrency(item.total || item.quantity * item.unitPrice))
@@ -631,7 +703,7 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
           View,
           { style: styles.paymentInstructionsBox, wrap: false },
           React.createElement(Text, { style: styles.paymentInstructionsTitle }, "Payment Instructions"),
-          React.createElement(Text, { style: styles.paymentInstructionsText }, invoice.paymentInstructions)
+          ...renderMultilineText(invoice.paymentInstructions, styles.paymentInstructionsText)
         )
       ),
       // Footer
