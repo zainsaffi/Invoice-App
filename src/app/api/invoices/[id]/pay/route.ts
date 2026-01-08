@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, InvoiceRow, toInvoice } from "@/db";
 import { auth } from "@/lib/auth";
 import { paymentSchema, uuidSchema, validateInput } from "@/lib/validations";
 import {
@@ -63,16 +63,16 @@ export async function POST(
     const { paymentMethod } = validation.data;
 
     // Check invoice exists and status
-    const invoice = await prisma.invoice.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1 AND user_id = $2",
+      [id, session.user.id]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
+
+    const invoice = toInvoice(invoiceRow);
 
     if (invoice.status === "paid") {
       return NextResponse.json(
@@ -88,14 +88,22 @@ export async function POST(
       );
     }
 
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id },
-      data: {
-        status: "paid",
-        paidAt: new Date(),
-        paymentMethod,
-      },
-    });
+    await query(
+      `UPDATE invoices SET
+        status = $1,
+        paid_at = $2,
+        payment_method = $3,
+        updated_at = $4
+      WHERE id = $5`,
+      ["paid", new Date(), paymentMethod, new Date(), id]
+    );
+
+    const updatedInvoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1",
+      [id]
+    );
+
+    const updatedInvoice = updatedInvoiceRow ? toInvoice(updatedInvoiceRow) : null;
 
     // Audit log
     await logAudit(

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { queryMany, InvoiceRow, toInvoice } from "@/db";
 import Sidebar from "@/components/Sidebar";
 import { CreditCard, CheckCircle, Clock, DollarSign } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -6,10 +6,14 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function PaymentsPage() {
-  const paidInvoices = await prisma.invoice.findMany({
-    where: { status: "paid" },
-    orderBy: { paidAt: "desc" },
-  });
+  // Fetch all paid invoices ordered by paid_at desc
+  const invoiceRows = await queryMany<InvoiceRow>(
+    `SELECT * FROM invoices WHERE status = $1 ORDER BY paid_at DESC`,
+    ["paid"]
+  );
+
+  // Convert to camelCase
+  const paidInvoices = invoiceRows.map(toInvoice);
 
   const totalPaid = paidInvoices.reduce((sum, inv) => sum + inv.total, 0);
 

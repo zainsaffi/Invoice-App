@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, toInvoice, toInvoiceItem, toReceipt } from "@/db";
+import { v4 as uuid } from "uuid";
 import { auth } from "@/lib/auth";
 import { updateInvoiceSchema, uuidSchema, validateInput } from "@/lib/validations";
 import {
@@ -39,20 +40,31 @@ export async function GET(
     }
 
     // Fetch invoice with ownership check
-    const invoice = await prisma.invoice.findFirst({
-      where: {
-        id,
-        userId: session.user.id, // Authorization: only owner can view
-      },
-      include: {
-        items: true,
-        receipts: true,
-      },
-    });
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1 AND user_id = $2",
+      [id, session.user.id]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
+
+    // Fetch items and receipts
+    const itemRows = await queryMany<InvoiceItemRow>(
+      "SELECT * FROM invoice_items WHERE invoice_id = $1",
+      [id]
+    );
+
+    const receiptRows = await queryMany<ReceiptRow>(
+      "SELECT * FROM receipts WHERE invoice_id = $1",
+      [id]
+    );
+
+    const invoice = {
+      ...toInvoice(invoiceRow),
+      items: itemRows.map(toInvoiceItem),
+      receipts: receiptRows.map(toReceipt),
+    };
 
     // Audit log
     await logAudit(session.user.id, "view", "invoice", id, null, request);
@@ -118,6 +130,7 @@ export async function PUT(
       invoiceNumber,
       clientName,
       clientEmail,
+      clientBusinessName,
       clientAddress,
       description,
       items,
@@ -132,40 +145,73 @@ export async function PUT(
     );
     const total = subtotal + tax;
 
-    // Use transaction to ensure atomicity
-    const invoice = await prisma.$transaction(async (tx) => {
-      // Delete existing items within transaction
-      await tx.invoiceItem.deleteMany({
-        where: { invoiceId: id },
-      });
+    // Delete existing items
+    await query("DELETE FROM invoice_items WHERE invoice_id = $1", [id]);
 
-      // Update invoice with new items
-      return tx.invoice.update({
-        where: { id },
-        data: {
-          ...(invoiceNumber && { invoiceNumber }),
-          clientName,
-          clientEmail,
-          clientAddress: clientAddress || "",
-          description,
-          subtotal,
-          tax,
-          total,
-          dueDate: dueDate ? new Date(dueDate) : null,
-          items: {
-            create: items.map((item) => ({
-              description: item.description,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              total: item.quantity * item.unitPrice,
-            })),
-          },
-        },
-        include: {
-          items: true,
-        },
-      });
-    });
+    // Update invoice
+    await query(
+      `UPDATE invoices SET
+        invoice_number = COALESCE($1, invoice_number),
+        client_name = $2,
+        client_email = $3,
+        client_business_name = $4,
+        client_address = $5,
+        description = $6,
+        subtotal = $7,
+        tax = $8,
+        total = $9,
+        due_date = $10,
+        updated_at = $11
+      WHERE id = $12`,
+      [
+        invoiceNumber || null,
+        clientName,
+        clientEmail,
+        clientBusinessName || null,
+        clientAddress || null,
+        description,
+        subtotal,
+        tax,
+        total,
+        dueDate ? new Date(dueDate) : null,
+        new Date(),
+        id,
+      ]
+    );
+
+    // Insert new items
+    for (const item of items) {
+      await query(
+        `INSERT INTO invoice_items (id, invoice_id, description, quantity, unit_price, total)
+        VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          uuid(),
+          id,
+          item.description,
+          item.quantity,
+          item.unitPrice,
+          item.quantity * item.unitPrice,
+        ]
+      );
+    }
+
+    // Fetch updated invoice
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1",
+      [id]
+    );
+
+    const itemRows = await queryMany<InvoiceItemRow>(
+      "SELECT * FROM invoice_items WHERE invoice_id = $1",
+      [id]
+    );
+
+    const invoice = invoiceRow
+      ? {
+          ...toInvoice(invoiceRow),
+          items: itemRows.map(toInvoiceItem),
+        }
+      : null;
 
     // Audit log
     await logAudit(
@@ -173,7 +219,7 @@ export async function PUT(
       "update",
       "invoice",
       id,
-      { invoiceNumber: invoice.invoiceNumber },
+      { invoiceNumber: invoice?.invoiceNumber },
       request
     );
 
@@ -227,9 +273,7 @@ export async function DELETE(
     }
 
     // Delete invoice (cascades to items and receipts due to schema)
-    await prisma.invoice.delete({
-      where: { id },
-    });
+    await query("DELETE FROM invoices WHERE id = $1", [id]);
 
     // Audit log
     await logAudit(session.user.id, "delete", "invoice", id, null, request);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, queryMany, InvoiceRow, InvoiceItemRow, UserRow, toInvoice, toInvoiceItem } from "@/db";
 
 // GET - Fetch invoice details by payment token (PUBLIC - no auth required)
 export async function GET(
@@ -16,27 +16,32 @@ export async function GET(
       );
     }
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { paymentToken: token },
-      include: {
-        items: true,
-        user: {
-          select: {
-            businessName: true,
-            businessEmail: true,
-            businessPhone: true,
-            businessAddress: true,
-          },
-        },
-      },
-    });
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE payment_token = $1",
+      [token]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json(
         { error: "Invoice not found or payment link has expired" },
         { status: 404 }
       );
     }
+
+    const invoice = toInvoice(invoiceRow);
+
+    // Fetch items
+    const itemRows = await queryMany<InvoiceItemRow>(
+      "SELECT * FROM invoice_items WHERE invoice_id = $1",
+      [invoice.id]
+    );
+
+    // Fetch user business details
+    const userRow = await queryOne<Pick<UserRow, 'business_name' | 'business_email' | 'business_phone' | 'business_address'>>(
+      `SELECT business_name, business_email, business_phone, business_address
+      FROM users WHERE id = $1`,
+      [invoice.userId]
+    );
 
     // Return invoice data (excluding sensitive fields)
     return NextResponse.json({
@@ -45,13 +50,16 @@ export async function GET(
       clientName: invoice.clientName,
       clientEmail: invoice.clientEmail,
       description: invoice.description,
-      items: invoice.items.map((item) => ({
-        id: item.id,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.total,
-      })),
+      items: itemRows.map((item) => {
+        const converted = toInvoiceItem(item);
+        return {
+          id: converted.id,
+          description: converted.description,
+          quantity: converted.quantity,
+          unitPrice: converted.unitPrice,
+          total: converted.total,
+        };
+      }),
       subtotal: invoice.subtotal,
       tax: invoice.tax,
       total: invoice.total,
@@ -59,10 +67,10 @@ export async function GET(
       dueDate: invoice.dueDate,
       createdAt: invoice.createdAt,
       user: {
-        businessName: invoice.user.businessName,
-        businessEmail: invoice.user.businessEmail,
-        businessPhone: invoice.user.businessPhone,
-        businessAddress: invoice.user.businessAddress,
+        businessName: userRow?.business_name,
+        businessEmail: userRow?.business_email,
+        businessPhone: userRow?.business_phone,
+        businessAddress: userRow?.business_address,
       },
     });
   } catch (error) {

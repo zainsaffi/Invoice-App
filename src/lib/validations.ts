@@ -34,6 +34,12 @@ export const createInvoiceSchema = z.object({
     .regex(emailRegex, "Invalid email format")
     .trim()
     .toLowerCase(),
+  clientBusinessName: z
+    .string()
+    .max(255, "Business name must be less than 255 characters")
+    .trim()
+    .optional()
+    .default(""),
   clientAddress: z
     .string()
     .max(1000, "Address must be less than 1000 characters")

@@ -25,6 +25,7 @@ export default function InvoiceForm({
     initialData || {
       clientName: "",
       clientEmail: "",
+      clientBusinessName: "",
       clientAddress: "",
       description: "",
       items: [{ ...emptyItem }],
@@ -133,6 +134,19 @@ export default function InvoiceForm({
                 onChange={handleChange}
                 required
                 placeholder="john@example.com"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Business Name
+              </label>
+              <input
+                type="text"
+                name="clientBusinessName"
+                value={formData.clientBusinessName}
+                onChange={handleChange}
+                placeholder="Acme Corporation"
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-slate-900 placeholder:text-slate-400"
               />
             </div>

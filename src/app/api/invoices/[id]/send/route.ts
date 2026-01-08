@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, InvoiceRow, toInvoice } from "@/db";
 import { sendInvoiceEmail } from "@/lib/email";
 import { formatDate, generatePaymentToken } from "@/lib/utils";
 import { auth } from "@/lib/auth";
@@ -55,16 +55,16 @@ export async function POST(
       return forbiddenResponse();
     }
 
-    const invoice = await prisma.invoice.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1 AND user_id = $2",
+      [id, session.user.id]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
+
+    const invoice = toInvoice(invoiceRow);
 
     // Cannot send cancelled invoices
     if (invoice.status === "cancelled") {
@@ -90,15 +90,31 @@ export async function POST(
       paymentToken: paymentToken || undefined,
     });
 
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id },
-      data: {
-        status: "sent",
-        emailSentAt: new Date(),
-        emailSentTo: invoice.clientEmail,
-        ...(paymentToken && { paymentToken }),
-      },
-    });
+    await query(
+      `UPDATE invoices SET
+        status = $1,
+        email_sent_at = $2,
+        email_sent_to = $3,
+        payment_token = COALESCE($4, payment_token),
+        updated_at = $5
+      WHERE id = $6`,
+      [
+        "sent",
+        new Date(),
+        invoice.clientEmail,
+        paymentToken,
+        new Date(),
+        id,
+      ]
+    );
+
+    // Fetch updated invoice
+    const updatedInvoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1",
+      [id]
+    );
+
+    const updatedInvoice = updatedInvoiceRow ? toInvoice(updatedInvoiceRow) : null;
 
     // Audit log
     await logAudit(

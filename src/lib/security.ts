@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "./prisma";
-import { auth } from "./auth";
+import { query, queryOne, RateLimitRow, InvoiceRow } from "@/db";
+import { v4 as uuid } from "uuid";
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -32,18 +32,25 @@ export async function checkRateLimit(
   const windowStart = new Date(now.getTime() - windowMs);
 
   try {
-    // Find or create rate limit record
-    let rateLimit = await prisma.rateLimit.findUnique({
-      where: { key },
-    });
+    // Find rate limit record
+    const rateLimit = await queryOne<RateLimitRow>(
+      "SELECT * FROM rate_limits WHERE key = $1",
+      [key]
+    );
 
-    if (!rateLimit || rateLimit.windowStart < windowStart) {
-      // Create new window
-      rateLimit = await prisma.rateLimit.upsert({
-        where: { key },
-        update: { count: 1, windowStart: now },
-        create: { key, count: 1, windowStart: now },
-      });
+    if (!rateLimit || rateLimit.window_start < windowStart) {
+      // Create new window or reset existing
+      if (rateLimit) {
+        await query(
+          "UPDATE rate_limits SET count = 1, window_start = $1 WHERE key = $2",
+          [now, key]
+        );
+      } else {
+        await query(
+          "INSERT INTO rate_limits (id, key, count, window_start) VALUES ($1, $2, $3, $4)",
+          [uuid(), key, 1, now]
+        );
+      }
 
       return {
         allowed: true,
@@ -57,20 +64,20 @@ export async function checkRateLimit(
       return {
         allowed: false,
         remaining: 0,
-        resetAt: new Date(rateLimit.windowStart.getTime() + windowMs),
+        resetAt: new Date(rateLimit.window_start.getTime() + windowMs),
       };
     }
 
     // Increment counter
-    await prisma.rateLimit.update({
-      where: { key },
-      data: { count: { increment: 1 } },
-    });
+    await query(
+      "UPDATE rate_limits SET count = count + 1 WHERE key = $1",
+      [key]
+    );
 
     return {
       allowed: true,
       remaining: maxRequests - rateLimit.count - 1,
-      resetAt: new Date(rateLimit.windowStart.getTime() + windowMs),
+      resetAt: new Date(rateLimit.window_start.getTime() + windowMs),
     };
   } catch (error) {
     // On error, allow the request but log
@@ -167,17 +174,20 @@ export async function logAudit(
   request: NextRequest
 ): Promise<void> {
   try {
-    await prisma.auditLog.create({
-      data: {
+    await query(
+      `INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details, ip_address, user_agent, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+      [
+        uuid(),
         userId,
         action,
         entity,
         entityId,
-        details: details ? JSON.stringify(details) : null,
-        ipAddress: getClientIp(request),
-        userAgent: request.headers.get("user-agent") || null,
-      },
-    });
+        details ? JSON.stringify(details) : null,
+        getClientIp(request),
+        request.headers.get("user-agent") || null,
+      ]
+    );
   } catch (error) {
     // Don't fail the request if audit logging fails
     console.error("Audit logging error:", error);
@@ -189,12 +199,10 @@ export async function checkInvoiceOwnership(
   invoiceId: string,
   userId: string
 ): Promise<boolean> {
-  const invoice = await prisma.invoice.findFirst({
-    where: {
-      id: invoiceId,
-      userId: userId,
-    },
-  });
+  const invoice = await queryOne<InvoiceRow>(
+    "SELECT id FROM invoices WHERE id = $1 AND user_id = $2",
+    [invoiceId, userId]
+  );
   return !!invoice;
 }
 

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, UserRow, toInvoice, toInvoiceItem, toReceipt, toUser } from "@/db";
 import InvoiceTable from "@/components/InvoiceTable";
 import Sidebar from "@/components/Sidebar";
 import Link from "next/link";
@@ -7,14 +7,61 @@ import { Plus } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function InvoicesPage() {
-  const invoices = await prisma.invoice.findMany({
-    include: {
-      items: true,
-      receipts: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
+  // Fetch all invoices ordered by created_at desc
+  const invoiceRows = await queryMany<InvoiceRow>(
+    `SELECT * FROM invoices ORDER BY created_at DESC`
+  );
+
+  // Fetch all items, receipts, and users for these invoices
+  const invoiceIds = invoiceRows.map((inv) => inv.id);
+  const userIds = [...new Set(invoiceRows.map((inv) => inv.user_id))];
+
+  let itemRows: InvoiceItemRow[] = [];
+  let receiptRows: ReceiptRow[] = [];
+  let userRows: UserRow[] = [];
+
+  if (invoiceIds.length > 0) {
+    // Create parameter placeholders for IN clause
+    const invoicePlaceholders = invoiceIds.map((_, i) => `$${i + 1}`).join(", ");
+
+    itemRows = await queryMany<InvoiceItemRow>(
+      `SELECT * FROM invoice_items WHERE invoice_id IN (${invoicePlaceholders})`,
+      invoiceIds
+    );
+
+    receiptRows = await queryMany<ReceiptRow>(
+      `SELECT * FROM receipts WHERE invoice_id IN (${invoicePlaceholders})`,
+      invoiceIds
+    );
+  }
+
+  if (userIds.length > 0) {
+    const userPlaceholders = userIds.map((_, i) => `$${i + 1}`).join(", ");
+    userRows = await queryMany<UserRow>(
+      `SELECT id, name, business_name, currency FROM users WHERE id IN (${userPlaceholders})`,
+      userIds
+    );
+  }
+
+  // Convert to camelCase and combine
+  const invoiceList = invoiceRows.map((row) => {
+    const invoice = toInvoice(row);
+    const items = itemRows
+      .filter((item) => item.invoice_id === row.id)
+      .map(toInvoiceItem);
+    const receipts = receiptRows
+      .filter((receipt) => receipt.invoice_id === row.id)
+      .map(toReceipt);
+    const userRow = userRows.find((u) => u.id === row.user_id);
+    const user = userRow
+      ? {
+          id: userRow.id,
+          name: userRow.name,
+          businessName: userRow.business_name,
+          currency: userRow.currency,
+        }
+      : undefined;
+    return { ...invoice, items, receipts, user };
   });
 
   return (
@@ -38,7 +85,7 @@ export default async function InvoicesPage() {
           </div>
 
           {/* Invoice Table */}
-          <InvoiceTable invoices={invoices} />
+          <InvoiceTable invoices={invoiceList} />
         </div>
       </main>
     </div>

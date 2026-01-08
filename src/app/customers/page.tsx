@@ -1,21 +1,33 @@
-import { prisma } from "@/lib/prisma";
+import { queryMany } from "@/db";
 import Sidebar from "@/components/Sidebar";
 import { Users, Mail, FileText, DollarSign } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+// Define an interface for the selected columns
+interface CustomerInvoiceRow {
+  client_name: string;
+  client_email: string;
+  client_address: string | null;
+  total: number;
+  status: string;
+}
+
 export default async function CustomersPage() {
   // Get unique customers from invoices
-  const invoices = await prisma.invoice.findMany({
-    select: {
-      clientName: true,
-      clientEmail: true,
-      clientAddress: true,
-      total: true,
-      status: true,
-    },
-  });
+  const invoiceRows = await queryMany<CustomerInvoiceRow>(
+    `SELECT client_name, client_email, client_address, total, status FROM invoices`
+  );
+
+  // Convert to camelCase
+  const invoices = invoiceRows.map((row) => ({
+    clientName: row.client_name,
+    clientEmail: row.client_email,
+    clientAddress: row.client_address,
+    total: row.total,
+    status: row.status,
+  }));
 
   // Group by customer email
   const customerMap = new Map<string, {

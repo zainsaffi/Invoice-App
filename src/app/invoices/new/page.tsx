@@ -13,6 +13,7 @@ export default function NewInvoicePage() {
   const [formData, setFormData] = useState<InvoiceFormData>({
     clientName: "",
     clientEmail: "",
+    clientBusinessName: "",
     clientAddress: "",
     description: "",
     items: [{ description: "", quantity: 1, unitPrice: 0 }],
@@ -158,6 +159,19 @@ export default function NewInvoicePage() {
                         required
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm transition-all"
                         placeholder="email@example.com"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Business Name
+                      </label>
+                      <input
+                        type="text"
+                        name="clientBusinessName"
+                        value={formData.clientBusinessName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm transition-all"
+                        placeholder="Enter client's business name"
                       />
                     </div>
                     <div className="col-span-2">

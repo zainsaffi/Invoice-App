@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, UserRow } from "@/db";
+import { v4 as uuid } from "uuid";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import {
@@ -54,9 +55,10 @@ export async function POST(request: NextRequest) {
     const { email, password, name } = validation.data;
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await queryOne<UserRow>(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
 
     if (existingUser) {
       return NextResponse.json(
@@ -69,24 +71,29 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-      },
-    });
+    const userId = uuid();
+    const now = new Date();
+    await query(
+      `INSERT INTO users (id, email, password, name, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, email, hashedPassword, name, now, now]
+    );
+
+    // Fetch created user (excluding password)
+    const user = await queryOne<Pick<UserRow, 'id' | 'email' | 'name' | 'created_at'>>(
+      "SELECT id, email, name, created_at FROM users WHERE id = $1",
+      [userId]
+    );
 
     return NextResponse.json(
       {
         message: "Account created successfully",
-        user,
+        user: user ? {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          createdAt: user.created_at,
+        } : null,
       },
       { status: 201 }
     );

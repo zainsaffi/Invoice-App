@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, ReceiptRow, toReceipt } from "@/db";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -155,27 +155,39 @@ export async function POST(
     await writeFile(filepath, buffer);
 
     // Store relative path for serving through API
-    const receipt = await prisma.receipt.create({
-      data: {
-        filename: sanitizedFilename,
-        filepath: `/api/receipts/${session.user.id}/${id}/${uniqueFilename}`,
-        mimeType: file.type,
-        size: file.size,
-        invoiceId: id,
-      },
-    });
+    const receiptId = uuidv4();
+    await query(
+      `INSERT INTO receipts (id, filename, filepath, mime_type, size, invoice_id, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        receiptId,
+        sanitizedFilename,
+        `/api/receipts/${session.user.id}/${id}/${uniqueFilename}`,
+        file.type,
+        file.size,
+        id,
+        new Date(),
+      ]
+    );
+
+    const receiptRow = await queryOne<ReceiptRow>(
+      "SELECT * FROM receipts WHERE id = $1",
+      [receiptId]
+    );
+
+    const receipt = receiptRow ? toReceipt(receiptRow) : null;
 
     // Audit log
     await logAudit(
       session.user.id,
       "create",
       "receipt",
-      receipt.id,
+      receiptId,
       { filename: sanitizedFilename, size: file.size, invoiceId: id },
       request
     );
 
-    return NextResponse.json(receipt, { status: 201 });
+    return NextResponse.json(receipt ?? { id: receiptId, filename: sanitizedFilename }, { status: 201 });
   } catch (error) {
     console.error("Error uploading receipt:", error);
     return NextResponse.json(
@@ -238,16 +250,16 @@ export async function DELETE(
     }
 
     // Find receipt and verify it belongs to this invoice
-    const receipt = await prisma.receipt.findFirst({
-      where: {
-        id: receiptId,
-        invoiceId: id,
-      },
-    });
+    const receiptRow = await queryOne<ReceiptRow>(
+      "SELECT * FROM receipts WHERE id = $1 AND invoice_id = $2",
+      [receiptId, id]
+    );
 
-    if (!receipt) {
+    if (!receiptRow) {
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
+
+    const receipt = toReceipt(receiptRow);
 
     // Delete file from disk
     try {
@@ -268,9 +280,7 @@ export async function DELETE(
     }
 
     // Delete database record
-    await prisma.receipt.delete({
-      where: { id: receiptId },
-    });
+    await query("DELETE FROM receipts WHERE id = $1", [receiptId]);
 
     // Audit log
     await logAudit(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/db";
 import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
 import Stripe from "stripe";
 
@@ -52,15 +52,23 @@ export async function POST(request: NextRequest) {
 
         if (invoiceId && session.payment_status === "paid") {
           // Update invoice to paid
-          await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: {
-              status: "paid",
-              paidAt: new Date(),
-              paymentMethod: "stripe",
-              stripePaymentIntentId: session.payment_intent as string,
-            },
-          });
+          await query(
+            `UPDATE invoices SET
+              status = $1,
+              paid_at = $2,
+              payment_method = $3,
+              stripe_payment_intent_id = $4,
+              updated_at = $5
+            WHERE id = $6`,
+            [
+              "paid",
+              new Date(),
+              "stripe",
+              session.payment_intent as string,
+              new Date(),
+              invoiceId,
+            ]
+          );
 
           console.log(`Invoice ${invoiceId} marked as paid via Stripe`);
         }
@@ -75,15 +83,23 @@ export async function POST(request: NextRequest) {
         console.log("Async payment succeeded:", session.id);
 
         if (invoiceId) {
-          await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: {
-              status: "paid",
-              paidAt: new Date(),
-              paymentMethod: "stripe_ach",
-              stripePaymentIntentId: session.payment_intent as string,
-            },
-          });
+          await query(
+            `UPDATE invoices SET
+              status = $1,
+              paid_at = $2,
+              payment_method = $3,
+              stripe_payment_intent_id = $4,
+              updated_at = $5
+            WHERE id = $6`,
+            [
+              "paid",
+              new Date(),
+              "stripe_ach",
+              session.payment_intent as string,
+              new Date(),
+              invoiceId,
+            ]
+          );
 
           console.log(`Invoice ${invoiceId} marked as paid via Stripe ACH`);
         }

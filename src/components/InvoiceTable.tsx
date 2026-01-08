@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Invoice } from "@/types/invoice";
 import { formatCurrency, formatDate, getDisplayStatus, getDisplayStatusBadge, DisplayStatus } from "@/lib/utils";
-import { ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, X, Calendar } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, X, Calendar, Eye, Edit, Send, Download, Trash2 } from "lucide-react";
 
 interface InvoiceTableProps {
   invoices: Invoice[];
 }
 
-type SortField = "invoiceNumber" | "total" | "status" | "clientName" | "createdAt" | "dueDate";
+type SortField = "invoiceNumber" | "total" | "status" | "clientName" | "createdAt" | "dueDate" | "currency" | "businessName" | "createdBy";
 type SortDirection = "asc" | "desc";
 
 const tabs = [
@@ -45,8 +46,84 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
   const [dateTo, setDateTo] = useState("");
   const [amountMin, setAmountMin] = useState("");
   const [amountMax, setAmountMax] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const hasActiveFilters = dateFrom || dateTo || amountMin || amountMax;
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+        setMenuPosition(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleMenuClick = (e: React.MouseEvent, invoiceId: string) => {
+    e.stopPropagation();
+    if (openMenuId === invoiceId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    } else {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.right - 192 + window.scrollX, // 192px = menu width (w-48)
+      });
+      setOpenMenuId(invoiceId);
+    }
+  };
+
+  const handleDownloadPdf = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/pdf`);
+      if (!response.ok) throw new Error("Failed to download PDF");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+    }
+    setOpenMenuId(null);
+  };
+
+  const handleSendInvoice = async (invoiceId: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/send`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to send invoice");
+      router.refresh();
+    } catch (error) {
+      console.error("Error sending invoice:", error);
+    }
+    setOpenMenuId(null);
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm("Are you sure you want to delete this invoice?")) return;
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete invoice");
+      router.refresh();
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+    }
+    setOpenMenuId(null);
+  };
 
   const clearFilters = () => {
     setDateFrom("");
@@ -160,6 +237,18 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
         case "dueDate":
           aVal = a.dueDate ? new Date(a.dueDate) : new Date(0);
           bVal = b.dueDate ? new Date(b.dueDate) : new Date(0);
+          break;
+        case "currency":
+          aVal = a.user?.currency || "";
+          bVal = b.user?.currency || "";
+          break;
+        case "businessName":
+          aVal = a.clientBusinessName || "";
+          bVal = b.clientBusinessName || "";
+          break;
+        case "createdBy":
+          aVal = a.user?.name || "";
+          bVal = b.user?.name || "";
           break;
       }
 
@@ -325,7 +414,7 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50/80 border-b border-gray-200">
             <tr>
@@ -349,6 +438,15 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
               </th>
               <th className="text-left px-4 py-3">
                 <button
+                  onClick={() => handleSort("currency")}
+                  className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                >
+                  Currency
+                  <SortIcon field="currency" />
+                </button>
+              </th>
+              <th className="text-left px-4 py-3">
+                <button
                   onClick={() => handleSort("status")}
                   className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
                 >
@@ -367,10 +465,28 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
               </th>
               <th className="text-left px-4 py-3">
                 <button
+                  onClick={() => handleSort("businessName")}
+                  className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                >
+                  Business Name
+                  <SortIcon field="businessName" />
+                </button>
+              </th>
+              <th className="text-left px-4 py-3">
+                <button
+                  onClick={() => handleSort("createdBy")}
+                  className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                >
+                  Created By
+                  <SortIcon field="createdBy" />
+                </button>
+              </th>
+              <th className="text-left px-4 py-3">
+                <button
                   onClick={() => handleSort("createdAt")}
                   className="flex items-center gap-1 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
                 >
-                  Date Created
+                  Issue Date
                   <SortIcon field="createdAt" />
                 </button>
               </th>
@@ -389,7 +505,7 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
           <tbody className="divide-y divide-gray-200 bg-white">
             {filteredAndSortedInvoices.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
                   <p className="text-lg font-medium mb-1">No invoices found</p>
                   <p className="text-sm">
                     {activeTab !== "all"
@@ -415,7 +531,12 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
                   </td>
                   <td className="px-4 py-4">
                     <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(invoice.total)}
+                      {formatCurrency(invoice.total, invoice.user?.currency)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="text-sm text-gray-600">
+                      {invoice.user?.currency || "USD"}
                     </span>
                   </td>
                   <td className="px-4 py-4">
@@ -426,6 +547,16 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
                       <span className="text-sm font-medium text-gray-900">{invoice.clientName}</span>
                       <p className="text-xs text-gray-500">{invoice.clientEmail}</p>
                     </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="text-sm text-gray-600">
+                      {invoice.clientBusinessName || "—"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="text-sm text-gray-600">
+                      {invoice.user?.name || "—"}
+                    </span>
                   </td>
                   <td className="px-4 py-4">
                     <span className="text-sm text-gray-600">
@@ -440,9 +571,7 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
                   <td className="px-4 py-4">
                     <button
                       className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
+                      onClick={(e) => handleMenuClick(e, invoice.id)}
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
@@ -460,6 +589,82 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
           Showing {filteredAndSortedInvoices.length} of {invoices.length} invoices
         </p>
       </div>
+
+      {/* Dropdown Menu Portal */}
+      {openMenuId && menuPosition && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[9999]"
+          style={{ top: menuPosition.top, left: menuPosition.left }}
+        >
+          {(() => {
+            const invoice = invoices.find(inv => inv.id === openMenuId);
+            if (!invoice) return null;
+            return (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/invoices/${invoice.id}`);
+                    setOpenMenuId(null);
+                    setMenuPosition(null);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Eye className="w-4 h-4" />
+                  View
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/invoices/${invoice.id}/edit`);
+                    setOpenMenuId(null);
+                    setMenuPosition(null);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+                {invoice.status !== "paid" && invoice.status !== "cancelled" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSendInvoice(invoice.id);
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Send className="w-4 h-4" />
+                    Send
+                  </button>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadPdf(invoice.id, invoice.invoiceNumber);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Download className="w-4 h-4" />
+                  Download PDF
+                </button>
+                <div className="border-t border-gray-100 my-1"></div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteInvoice(invoice.id);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

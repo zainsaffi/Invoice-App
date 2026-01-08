@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, toInvoice, toInvoiceItem, toReceipt } from "@/db";
 import Sidebar from "@/components/Sidebar";
 import SalesChart from "@/components/SalesChart";
 import Link from "next/link";
@@ -16,25 +16,55 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  const invoices = await prisma.invoice.findMany({
-    include: {
-      items: true,
-      receipts: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
+  // Fetch all invoices ordered by created_at desc
+  const invoiceRows = await queryMany<InvoiceRow>(
+    `SELECT * FROM invoices ORDER BY created_at DESC`
+  );
+
+  // Fetch all items and receipts for these invoices
+  const invoiceIds = invoiceRows.map((inv) => inv.id);
+
+  let itemRows: InvoiceItemRow[] = [];
+  let receiptRows: ReceiptRow[] = [];
+
+  if (invoiceIds.length > 0) {
+    // Create parameter placeholders for IN clause
+    const placeholders = invoiceIds.map((_, i) => `$${i + 1}`).join(", ");
+
+    itemRows = await queryMany<InvoiceItemRow>(
+      `SELECT * FROM invoice_items WHERE invoice_id IN (${placeholders})`,
+      invoiceIds
+    );
+
+    receiptRows = await queryMany<ReceiptRow>(
+      `SELECT * FROM receipts WHERE invoice_id IN (${placeholders})`,
+      invoiceIds
+    );
+  }
+
+  // Convert to camelCase and combine
+  const invoices = invoiceRows.map((row) => {
+    const invoice = toInvoice(row);
+    const items = itemRows
+      .filter((item) => item.invoice_id === row.id)
+      .map(toInvoiceItem);
+    const receipts = receiptRows
+      .filter((receipt) => receipt.invoice_id === row.id)
+      .map(toReceipt);
+    return { ...invoice, items, receipts };
   });
 
   const now = new Date();
 
-  // Prepare sales data for the chart
+  // Prepare sales data for the chart (include client info)
   const salesData = invoices
     .filter((inv) => inv.status === "paid")
     .map((inv) => ({
       date: new Date(inv.createdAt).toISOString().split("T")[0],
       amount: inv.total,
       paidAt: inv.paidAt ? new Date(inv.paidAt).toISOString() : null,
+      clientName: inv.clientName,
+      clientEmail: inv.clientEmail,
     }));
 
   // Calculate quick stats

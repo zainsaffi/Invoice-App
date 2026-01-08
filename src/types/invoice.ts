@@ -15,11 +15,19 @@ export interface Receipt {
   createdAt: string | Date;
 }
 
+export interface InvoiceUser {
+  id: string;
+  name: string | null;
+  businessName: string | null;
+  currency: string;
+}
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
   clientName: string;
   clientEmail: string;
+  clientBusinessName: string | null;
   clientAddress: string | null;
   description: string;
   items: InvoiceItem[];
@@ -35,12 +43,14 @@ export interface Invoice {
   dueDate: string | Date | null;
   createdAt: string | Date;
   updatedAt: string | Date;
+  user?: InvoiceUser;
 }
 
 export interface InvoiceFormData {
   invoiceNumber?: string;
   clientName: string;
   clientEmail: string;
+  clientBusinessName: string;
   clientAddress: string;
   description: string;
   items: InvoiceItem[];

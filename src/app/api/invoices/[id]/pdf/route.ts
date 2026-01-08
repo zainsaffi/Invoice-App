@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, UserRow, toInvoice, toInvoiceItem, toReceipt } from "@/db";
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
@@ -542,41 +542,61 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
-      include: {
-        items: true,
-        receipts: true,
-        user: {
-          select: {
-            businessName: true,
-            bankName: true,
-            accountName: true,
-            accountNumber: true,
-            routingNumber: true,
-            iban: true,
-            paypalEmail: true,
-            paymentNotes: true,
-          },
-        },
-      },
-    });
+    // Fetch invoice
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1",
+      [id]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json(
         { error: "Invoice not found" },
         { status: 404 }
       );
     }
 
+    const invoice = toInvoice(invoiceRow);
+
+    // Fetch items
+    const itemRows = await queryMany<InvoiceItemRow>(
+      "SELECT * FROM invoice_items WHERE invoice_id = $1",
+      [id]
+    );
+
+    // Fetch receipts
+    const receiptRows = await queryMany<ReceiptRow>(
+      "SELECT * FROM receipts WHERE invoice_id = $1",
+      [id]
+    );
+
+    // Fetch user payment details
+    const userRow = await queryOne<Pick<UserRow, 'business_name' | 'bank_name' | 'account_name' | 'account_number' | 'routing_number' | 'iban' | 'paypal_email' | 'payment_notes'>>(
+      `SELECT business_name, bank_name, account_name, account_number, routing_number, iban, paypal_email, payment_notes
+      FROM users WHERE id = $1`,
+      [invoice.userId]
+    );
+
+    const invoiceWithRelations = {
+      ...invoice,
+      items: itemRows.map(toInvoiceItem),
+      receipts: receiptRows.map(toReceipt),
+    };
+
     // Load image attachments
     const imageAttachments: { filename: string; data: string; mimeType: string }[] = [];
 
-    for (const receipt of invoice.receipts) {
+    for (const receipt of invoiceWithRelations.receipts) {
       if (isImageFile(receipt.mimeType)) {
         try {
-          // Get the absolute path to the file
-          const filePath = path.join(process.cwd(), "public", receipt.filepath);
+          // Extract the actual file path from the stored API path
+          // Format: /api/receipts/{userId}/{invoiceId}/{filename}
+          const pathParts = receipt.filepath.split("/");
+          const filename = pathParts[pathParts.length - 1];
+          const invoiceId = pathParts[pathParts.length - 2];
+          const userId = pathParts[pathParts.length - 3];
+
+          // Build the actual file path in uploads folder
+          const filePath = path.join(process.cwd(), "uploads", userId, invoiceId, filename);
 
           if (fs.existsSync(filePath)) {
             const fileBuffer = fs.readFileSync(filePath);
@@ -588,6 +608,8 @@ export async function GET(
               data: dataUri,
               mimeType: receipt.mimeType,
             });
+          } else {
+            console.error(`Attachment file not found: ${filePath}`);
           }
         } catch (err) {
           console.error(`Error loading attachment ${receipt.filename}:`, err);
@@ -596,11 +618,20 @@ export async function GET(
     }
 
     // Extract payment details from user
-    const paymentDetails: PaymentDetails = invoice.user || {};
+    const paymentDetails: PaymentDetails = userRow ? {
+      businessName: userRow.business_name,
+      bankName: userRow.bank_name,
+      accountName: userRow.account_name,
+      accountNumber: userRow.account_number,
+      routingNumber: userRow.routing_number,
+      iban: userRow.iban,
+      paypalEmail: userRow.paypal_email,
+      paymentNotes: userRow.payment_notes,
+    } : {};
 
     // Generate PDF
     const pdfBuffer = await renderToBuffer(
-      React.createElement(InvoicePDF, { invoice, imageAttachments, paymentDetails }) as any
+      React.createElement(InvoicePDF, { invoice: invoiceWithRelations, imageAttachments, paymentDetails }) as any
     );
 
     // Return PDF as response

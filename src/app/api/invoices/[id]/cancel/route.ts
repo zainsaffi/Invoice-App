@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, toInvoice, toInvoiceItem, toReceipt } from "@/db";
 import { auth } from "@/lib/auth";
 import { uuidSchema } from "@/lib/validations";
 import {
@@ -53,19 +53,19 @@ export async function POST(
     }
 
     // Check if invoice exists and its current status
-    const invoice = await prisma.invoice.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1 AND user_id = $2",
+      [id, session.user.id]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json(
         { error: "Invoice not found" },
         { status: 404 }
       );
     }
+
+    const invoice = toInvoice(invoiceRow);
 
     // Cannot cancel if already paid
     if (invoice.status === "paid") {
@@ -84,16 +84,34 @@ export async function POST(
     }
 
     // Update invoice status to cancelled
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id },
-      data: {
-        status: "cancelled",
-      },
-      include: {
-        items: true,
-        receipts: true,
-      },
-    });
+    await query(
+      "UPDATE invoices SET status = $1, updated_at = $2 WHERE id = $3",
+      ["cancelled", new Date(), id]
+    );
+
+    // Fetch updated invoice with relations
+    const updatedInvoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1",
+      [id]
+    );
+
+    const itemRows = await queryMany<InvoiceItemRow>(
+      "SELECT * FROM invoice_items WHERE invoice_id = $1",
+      [id]
+    );
+
+    const receiptRows = await queryMany<ReceiptRow>(
+      "SELECT * FROM receipts WHERE invoice_id = $1",
+      [id]
+    );
+
+    const updatedInvoice = updatedInvoiceRow
+      ? {
+          ...toInvoice(updatedInvoiceRow),
+          items: itemRows.map(toInvoiceItem),
+          receipts: receiptRows.map(toReceipt),
+        }
+      : null;
 
     // Audit log
     await logAudit(

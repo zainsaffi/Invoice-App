@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, UserRow, toInvoice, toInvoiceItem } from "@/db";
 import { stripe, isStripeEnabled } from "@/lib/stripe";
 
 // POST - Create Stripe Checkout Session (PUBLIC - no auth required)
@@ -25,24 +25,33 @@ export async function POST(
       );
     }
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { paymentToken: token },
-      include: {
-        items: true,
-        user: {
-          select: {
-            businessName: true,
-          },
-        },
-      },
-    });
+    const invoiceRow = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE payment_token = $1",
+      [token]
+    );
 
-    if (!invoice) {
+    if (!invoiceRow) {
       return NextResponse.json(
         { error: "Invoice not found" },
         { status: 404 }
       );
     }
+
+    const invoice = toInvoice(invoiceRow);
+
+    // Fetch items
+    const itemRows = await queryMany<InvoiceItemRow>(
+      "SELECT * FROM invoice_items WHERE invoice_id = $1",
+      [invoice.id]
+    );
+
+    const items = itemRows.map(toInvoiceItem);
+
+    // Fetch user business name
+    const userRow = await queryOne<Pick<UserRow, 'business_name'>>(
+      "SELECT business_name FROM users WHERE id = $1",
+      [invoice.userId]
+    );
 
     // Check if already paid
     if (invoice.status === "paid") {
@@ -63,7 +72,7 @@ export async function POST(
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // Create line items for Stripe
-    const lineItems = invoice.items.map((item) => ({
+    const lineItems = items.map((item) => ({
       price_data: {
         currency: "usd",
         product_data: {
@@ -110,12 +119,10 @@ export async function POST(
     });
 
     // Update invoice with checkout session ID
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        stripeCheckoutSessionId: session.id,
-      },
-    });
+    await query(
+      "UPDATE invoices SET stripe_checkout_session_id = $1, updated_at = $2 WHERE id = $3",
+      [session.id, new Date(), invoice.id]
+    );
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
