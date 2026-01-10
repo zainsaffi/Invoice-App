@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query, queryOne, InvoiceRow, toInvoice } from "@/db";
+import { query, queryOne, InvoiceRow, UserRow, toInvoice, toUser } from "@/db";
 import { sendInvoiceEmail } from "@/lib/email";
 import { formatDate, generatePaymentToken } from "@/lib/utils";
 import { auth } from "@/lib/auth";
@@ -15,6 +15,16 @@ import {
   logAudit,
   checkInvoiceOwnership,
 } from "@/lib/security";
+
+// Generate a unique view token
+function generateViewToken(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 64; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
 
 export async function POST(
   request: NextRequest,
@@ -74,10 +84,23 @@ export async function POST(
       );
     }
 
+    // Get user info for business name
+    const userRow = await queryOne<UserRow>(
+      "SELECT * FROM users WHERE id = $1",
+      [session.user.id]
+    );
+    const user = userRow ? toUser(userRow) : null;
+
     // Generate payment token if Stripe is enabled and no token exists
     let paymentToken = invoice.paymentToken;
     if (isStripeEnabled() && !paymentToken) {
       paymentToken = generatePaymentToken();
+    }
+
+    // Generate view token if not exists
+    let viewToken = invoice.viewToken;
+    if (!viewToken) {
+      viewToken = generateViewToken();
     }
 
     await sendInvoiceEmail({
@@ -88,6 +111,8 @@ export async function POST(
       dueDate: invoice.dueDate ? formatDate(invoice.dueDate) : null,
       invoiceId: invoice.id,
       paymentToken: paymentToken || undefined,
+      viewToken: viewToken,
+      businessName: user?.businessName || user?.name || undefined,
     });
 
     await query(
@@ -96,13 +121,15 @@ export async function POST(
         email_sent_at = $2,
         email_sent_to = $3,
         payment_token = COALESCE($4, payment_token),
-        updated_at = $5
-      WHERE id = $6`,
+        view_token = COALESCE($5, view_token),
+        updated_at = $6
+      WHERE id = $7`,
       [
         "sent",
         new Date(),
         invoice.clientEmail,
         paymentToken,
+        viewToken,
         new Date(),
         id,
       ]

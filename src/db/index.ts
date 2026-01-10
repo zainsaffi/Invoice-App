@@ -131,6 +131,9 @@ export interface InvoiceRow {
   amount_paid: number;
   payment_instructions: string | null;
   due_date: Date | null;
+  view_count: number;
+  last_viewed_at: Date | null;
+  view_token: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -221,6 +224,9 @@ export function toInvoice(row: InvoiceRow) {
     amountPaid: Number(row.amount_paid || 0),
     paymentInstructions: row.payment_instructions,
     dueDate: row.due_date,
+    viewCount: Number(row.view_count || 0),
+    lastViewedAt: row.last_viewed_at,
+    viewToken: row.view_token,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

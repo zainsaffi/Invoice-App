@@ -84,6 +84,9 @@ export interface Invoice {
   amountPaid: number;
   paymentInstructions: string | null;
   dueDate: string | Date | null;
+  viewCount: number;
+  lastViewedAt: string | Date | null;
+  viewToken: string | null;
   createdAt: string | Date;
   updatedAt: string | Date;
   user?: InvoiceUser;

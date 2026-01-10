@@ -27,6 +27,7 @@ import {
   CheckCircle,
   AlertCircle,
   Tag,
+  Eye,
 } from "lucide-react";
 
 export default function InvoiceDetailPage({
@@ -647,6 +648,22 @@ export default function InvoiceDetailPage({
                     </div>
                   )}
 
+                  {invoice.viewCount > 0 && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Eye className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Viewed {invoice.viewCount} time{invoice.viewCount !== 1 ? 's' : ''}
+                        </p>
+                        {invoice.lastViewedAt && (
+                          <p className="text-xs text-gray-500">Last viewed {formatDate(invoice.lastViewedAt)}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {invoice.paidAt && (
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -804,6 +821,10 @@ export default function InvoiceDetailPage({
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">Payments</span>
                     <span className="text-sm font-semibold text-gray-900">{invoice.payments?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Client Views</span>
+                    <span className="text-sm font-semibold text-gray-900">{invoice.viewCount || 0}</span>
                   </div>
                   <div className="pt-4 border-t border-gray-200">
                     <div className="flex justify-between items-center">
