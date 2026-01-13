@@ -23,6 +23,17 @@ const DEFAULT_DESCRIPTION_TEMPLATES: ItemTemplate[] = [
   { id: 'default-desc-1', type: 'description', content: 'Pilot:\nTrip Dates:\nItinerary:\nLead Passenger:', usageCount: 10, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
+const DEFAULT_PAYMENT_INSTRUCTIONS = `Jordan Hardison / Sosocial.media
+Phone: 772-323-5828
+Email: jordanahardison@gmail.com
+Mailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982
+
+Bank Info:
+Company Name: AIO.Church
+Bank Name: Coastal Community Bank
+ACH/Routing: 125109019
+Account #: 8751-0692-4355`;
+
 export default function NewInvoicePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +45,7 @@ export default function NewInvoicePage() {
     items: [{ title: "", description: "", quantity: 1, unitPrice: 0 }],
     tax: 0,
     dueDate: "",
-    paymentInstructions: "",
+    paymentInstructions: DEFAULT_PAYMENT_INSTRUCTIONS,
     status: "due",
   });
 
