@@ -111,7 +111,6 @@ export interface InvoiceFormData {
   clientEmail: string;
   clientBusinessName: string;
   clientAddress: string;
-  description: string;
   items: InvoiceItem[];
   tax: number;
   dueDate: string;

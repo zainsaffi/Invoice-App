@@ -23,7 +23,6 @@ export default function EditInvoicePage({
     clientEmail: "",
     clientBusinessName: "",
     clientAddress: "",
-    description: "",
     items: [{ title: "", description: "", quantity: 1, unitPrice: 0 }],
     tax: 0,
     dueDate: "",
@@ -44,7 +43,6 @@ export default function EditInvoicePage({
             clientEmail: data.clientEmail,
             clientBusinessName: data.clientBusinessName || "",
             clientAddress: data.clientAddress || "",
-            description: data.description,
             items: data.items.map((item: { title: string; description: string; quantity: number; unitPrice: number }) => ({
               title: item.title || "",
               description: item.description,
@@ -324,20 +322,6 @@ export default function EditInvoicePage({
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Description <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm transition-all"
-                        placeholder="Invoice description"
-                      />
                     </div>
                   </div>
                 </div>

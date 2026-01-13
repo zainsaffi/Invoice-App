@@ -67,11 +67,6 @@ export const createInvoiceSchema = z.object({
     .trim()
     .optional()
     .default(""),
-  description: z
-    .string()
-    .min(1, "Description is required")
-    .max(500, "Description must be less than 500 characters")
-    .trim(),
   items: z
     .array(invoiceItemSchema)
     .min(1, "At least one item is required")

@@ -135,23 +135,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#111827",
   },
-  // Description section
-  descriptionSection: {
-    marginBottom: 12,
-  },
-  descriptionLabel: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  descriptionText: {
-    fontSize: 10,
-    color: "#374151",
-    lineHeight: 1.5,
-  },
   // Items table
   table: {
     marginBottom: 12,
@@ -554,7 +537,7 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
   pages.push(
     React.createElement(
       Page,
-      { key: "main", size: "A4", style: styles.page },
+      { key: "main", size: "A4", style: styles.page, wrap: false },
       // Top accent bar
       React.createElement(View, { style: styles.accentBar }),
       // Main content
@@ -568,7 +551,7 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
           React.createElement(
             View,
             { style: styles.brandSection },
-            React.createElement(Text, { style: styles.logo }, paymentDetails.businessName || "Invoice"),
+            React.createElement(Text, { style: styles.logo }, paymentDetails.businessName || "Sosocial"),
             React.createElement(Text, { style: styles.tagline }, "Professional Invoice")
           ),
           React.createElement(
@@ -621,13 +604,6 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
               React.createElement(Text, { style: styles.detailValue }, invoice.invoiceNumber)
             )
           )
-        ),
-        // Description (if exists)
-        invoice.description && React.createElement(
-          View,
-          { style: styles.descriptionSection },
-          React.createElement(Text, { style: styles.descriptionLabel }, "Description"),
-          ...renderMultilineText(invoice.description, styles.descriptionText)
         ),
         // Items Table
         React.createElement(
