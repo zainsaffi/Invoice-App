@@ -55,20 +55,26 @@ export default function NewInvoicePage() {
         ]);
         if (titlesRes.ok) {
           const titles = await titlesRes.json();
-          const allTitles = [...titles];
-          DEFAULT_TITLE_TEMPLATES.forEach(dt => {
-            if (!allTitles.some((t: ItemTemplate) => t.content === dt.content)) {
-              allTitles.push(dt);
+          // Filter out any templates that look like descriptions (contain newlines or are too long)
+          const validTitles = titles.filter((t: ItemTemplate) =>
+            !t.content.includes('\n') && t.content.length <= 100
+          );
+          // Start with defaults first, then add user's saved templates
+          const allTitles = [...DEFAULT_TITLE_TEMPLATES];
+          validTitles.forEach((t: ItemTemplate) => {
+            if (!allTitles.some((dt) => dt.content === t.content)) {
+              allTitles.push(t);
             }
           });
           setTitleTemplates(allTitles);
         }
         if (descriptionsRes.ok) {
           const descriptions = await descriptionsRes.json();
-          const allDescs = [...descriptions];
-          DEFAULT_DESCRIPTION_TEMPLATES.forEach(dd => {
-            if (!allDescs.some((d: ItemTemplate) => d.content === dd.content)) {
-              allDescs.push(dd);
+          // Start with defaults first, then add user's saved templates
+          const allDescs = [...DEFAULT_DESCRIPTION_TEMPLATES];
+          descriptions.forEach((d: ItemTemplate) => {
+            if (!allDescs.some((dd) => dd.content === d.content)) {
+              allDescs.push(d);
             }
           });
           setDescriptionTemplates(allDescs);
@@ -412,7 +418,7 @@ export default function NewInvoicePage() {
                             />
                             {/* Title Dropdown */}
                             {openDropdown?.index === index && openDropdown?.type === 'title' && (
-                              <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
                                 <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
                                   <span className="text-xs font-medium text-gray-500 uppercase">Select a title</span>
                                 </div>
@@ -471,7 +477,7 @@ export default function NewInvoicePage() {
                             />
                             {/* Description Dropdown */}
                             {openDropdown?.index === index && openDropdown?.type === 'description' && (
-                              <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
                                 <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
                                   <span className="text-xs font-medium text-gray-500 uppercase">Select a description</span>
                                 </div>
