@@ -143,6 +143,7 @@ export async function PUT(
       tax,
       dueDate,
       paymentInstructions,
+      status,
     } = validation.data;
 
     // Calculate totals
@@ -169,8 +170,9 @@ export async function PUT(
         total = $9,
         due_date = $10,
         payment_instructions = $11,
-        updated_at = $12
-      WHERE id = $13`,
+        status = COALESCE($12, status),
+        updated_at = $13
+      WHERE id = $14`,
       [
         invoiceNumber || null,
         clientName,
@@ -183,6 +185,7 @@ export async function PUT(
         total,
         dueDate ? new Date(dueDate) : null,
         paymentInstructions || null,
+        status || null,
         new Date(),
         id,
       ]

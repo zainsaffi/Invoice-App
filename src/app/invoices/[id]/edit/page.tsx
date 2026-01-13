@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
-import { Invoice, InvoiceFormData } from "@/types/invoice";
+import { Invoice, InvoiceFormData, INVOICE_STATUSES } from "@/types/invoice";
 import { ArrowLeft, Plus, Trash2, User, FileText, Package, CreditCard } from "lucide-react";
 
 export default function EditInvoicePage({
@@ -28,6 +28,7 @@ export default function EditInvoicePage({
     tax: 0,
     dueDate: "",
     paymentInstructions: "",
+    status: "due",
   });
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function EditInvoicePage({
               ? new Date(data.dueDate).toISOString().split("T")[0]
               : "",
             paymentInstructions: data.paymentInstructions || "",
+            status: data.status || "due",
           });
         }
       } catch (error) {
@@ -305,6 +307,23 @@ export default function EditInvoicePage({
                         onChange={handleChange}
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm transition-all"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        name="status"
+                        value={formData.status || "due"}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white text-sm transition-all"
+                      >
+                        {INVOICE_STATUSES.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">

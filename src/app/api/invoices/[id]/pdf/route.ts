@@ -23,7 +23,8 @@ const styles = StyleSheet.create({
   // Main content container
   content: {
     padding: "20 35",
-    paddingBottom: 60,
+    paddingBottom: 50,
+    minHeight: "auto",
   },
   // Header section
   header: {
@@ -76,6 +77,10 @@ const styles = StyleSheet.create({
   statusPaid: { backgroundColor: "#D1FAE5", color: "#059669" },
   statusCancelled: { backgroundColor: "#F3F4F6", color: "#9CA3AF" },
   statusPartial: { backgroundColor: "#DBEAFE", color: "#1D4ED8" },
+  statusShipped: { backgroundColor: "#E0E7FF", color: "#4338CA" },
+  statusCompleted: { backgroundColor: "#D1FAE5", color: "#047857" },
+  statusRefunded: { backgroundColor: "#FCE7F3", color: "#BE185D" },
+  statusInProgress: { backgroundColor: "#FEF3C7", color: "#D97706" },
   // Info cards row
   infoRow: {
     flexDirection: "row",
@@ -424,27 +429,21 @@ function getDisplayStatus(invoice: {
   amountPaid?: number;
   total?: number;
 }): string {
-  if (invoice.status === "cancelled") return "cancelled";
+  // Use the stored status directly - user selected it when creating the invoice
+  // Only override for special cases like partial payment
 
   // Check for partial payment
   if (invoice.amountPaid && invoice.total && invoice.amountPaid > 0 && invoice.amountPaid < invoice.total) {
     return "partial";
   }
 
-  // Fully paid
-  if (invoice.status === "paid" || (invoice.amountPaid && invoice.total && invoice.amountPaid >= invoice.total)) {
+  // If fully paid by amount, show paid
+  if (invoice.amountPaid && invoice.total && invoice.amountPaid >= invoice.total) {
     return "paid";
   }
 
-  if (invoice.status === "draft" || !invoice.emailSentAt) return "draft";
-  if (invoice.dueDate) {
-    const now = new Date();
-    const dueDate = new Date(invoice.dueDate);
-    dueDate.setHours(23, 59, 59, 999);
-    if (now > dueDate) return "overdue";
-    return "due";
-  }
-  return "sent";
+  // Return the stored status
+  return invoice.status || "draft";
 }
 
 function isImageFile(mimeType: string): boolean {
@@ -529,16 +528,24 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
     paid: styles.statusPaid,
     cancelled: styles.statusCancelled,
     sent: styles.statusDue,
+    shipped: styles.statusShipped,
+    completed: styles.statusCompleted,
+    refunded: styles.statusRefunded,
+    in_progress: styles.statusInProgress,
   }[status] || styles.statusDraft;
 
   const statusLabels: Record<string, string> = {
     draft: "DRAFT",
-    due: "PENDING",
+    due: "DUE",
     overdue: "OVERDUE",
     partial: "PARTIAL",
     paid: "PAID",
     cancelled: "CANCELLED",
     sent: "SENT",
+    shipped: "SHIPPED",
+    completed: "COMPLETED",
+    refunded: "REFUNDED",
+    in_progress: "IN PROGRESS",
   };
 
   const pages = [];
@@ -701,15 +708,15 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
         // Payment Instructions (if exists)
         invoice.paymentInstructions && React.createElement(
           View,
-          { style: styles.paymentInstructionsBox, wrap: false },
+          { style: styles.paymentInstructionsBox },
           React.createElement(Text, { style: styles.paymentInstructionsTitle }, "Payment Instructions"),
           ...renderMultilineText(invoice.paymentInstructions, styles.paymentInstructionsText)
         )
       ),
-      // Footer
+      // Footer (fixed to prevent blank page issues)
       React.createElement(
         View,
-        { style: styles.footer },
+        { style: styles.footer, fixed: true },
         React.createElement(
           View,
           { style: styles.footerContent },

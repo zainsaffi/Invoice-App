@@ -36,6 +36,11 @@ export const itemTemplateSchema = z.object({
     .trim(),
 });
 
+// Invoice status values
+export const invoiceStatusSchema = z.enum([
+  "draft", "due", "paid", "shipped", "completed", "refunded", "cancelled", "in_progress"
+]);
+
 // Create invoice schema
 export const createInvoiceSchema = z.object({
   clientName: z
@@ -93,6 +98,9 @@ export const createInvoiceSchema = z.object({
     .max(2000, "Payment instructions must be less than 2000 characters")
     .trim()
     .optional(),
+  status: invoiceStatusSchema
+    .optional()
+    .default("draft"),
 });
 
 // Update invoice schema (includes invoiceNumber)

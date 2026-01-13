@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
-import { InvoiceFormData, ItemTemplate } from "@/types/invoice";
+import { InvoiceFormData, ItemTemplate, INVOICE_STATUSES } from "@/types/invoice";
 import { ArrowLeft, Plus, Trash2, ChevronDown, Check } from "lucide-react";
 
 interface ItemSaveFlags {
@@ -36,6 +36,7 @@ export default function NewInvoicePage() {
     tax: 0,
     dueDate: "",
     paymentInstructions: "",
+    status: "due",
   });
 
   // Template state - initialize with defaults
@@ -348,17 +349,36 @@ export default function NewInvoicePage() {
                       placeholder="Invoice for services rendered"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Due Date
-                    </label>
-                    <input
-                      type="date"
-                      name="dueDate"
-                      value={formData.dueDate}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Due Date
+                      </label>
+                      <input
+                        type="date"
+                        name="dueDate"
+                        value={formData.dueDate}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Status
+                      </label>
+                      <select
+                        name="status"
+                        value={formData.status || "due"}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm bg-white"
+                      >
+                        {INVOICE_STATUSES.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
