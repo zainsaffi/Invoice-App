@@ -330,8 +330,8 @@ const styles = StyleSheet.create({
   },
   attachmentContent: {
     flex: 1,
-    padding: 40,
-    paddingTop: 30,
+    padding: 30,
+    paddingTop: 20,
     display: "flex",
     flexDirection: "column",
   },
@@ -339,8 +339,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 25,
-    paddingBottom: 15,
+    marginBottom: 15,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
@@ -362,23 +362,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
   },
+  // Grid layout for multiple attachments
+  attachmentGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  attachmentItem: {
+    width: 250,
+    height: 220,
+    marginBottom: 12,
+  },
   attachmentImageContainer: {
-    flex: 1,
-    display: "flex",
-    justifyContent: "center",
+    width: 250,
+    height: 180,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 6,
+    padding: 6,
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
   },
   attachmentImage: {
-    maxWidth: "100%",
-    maxHeight: 650,
+    width: 238,
+    height: 168,
     objectFit: "contain",
   },
   attachmentFilename: {
-    fontSize: 9,
+    fontSize: 7,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 4,
+    maxLines: 1,
+  },
+  attachmentType: {
+    fontSize: 6,
     color: "#9CA3AF",
     textAlign: "center",
-    marginTop: 15,
-    fontStyle: "italic",
+    marginTop: 2,
+    textTransform: "uppercase",
   },
   pageNumber: {
     position: "absolute",
@@ -712,47 +736,73 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
     )
   );
 
-  // Add attachment pages for each image
-  imageAttachments.forEach((attachment, index) => {
-    const typeLabel = getAttachmentTypeLabel(attachment.attachmentType);
-    pages.push(
-      React.createElement(
-        Page,
-        { key: `attachment-${index}`, size: "A4", style: styles.attachmentPage },
-        // Top accent bar
-        React.createElement(View, { style: styles.accentBar }),
-        // Content
+  // Add attachment pages with max 6 attachments per page
+  const ATTACHMENTS_PER_PAGE = 6;
+  if (imageAttachments.length > 0) {
+    const totalAttachmentPages = Math.ceil(imageAttachments.length / ATTACHMENTS_PER_PAGE);
+
+    for (let pageIndex = 0; pageIndex < totalAttachmentPages; pageIndex++) {
+      const startIndex = pageIndex * ATTACHMENTS_PER_PAGE;
+      const endIndex = Math.min(startIndex + ATTACHMENTS_PER_PAGE, imageAttachments.length);
+      const pageAttachments = imageAttachments.slice(startIndex, endIndex);
+      const pageNumber = pageIndex + 2; // Main invoice is page 1
+
+      pages.push(
         React.createElement(
-          View,
-          { style: styles.attachmentContent },
-          // Header
+          Page,
+          { key: `attachments-${pageIndex}`, size: "A4", style: styles.attachmentPage, wrap: false },
+          // Top accent bar
+          React.createElement(View, { style: styles.accentBar }),
+          // Content
           React.createElement(
             View,
-            { style: styles.attachmentHeader },
+            { style: styles.attachmentContent },
+            // Header
             React.createElement(
               View,
-              null,
-              React.createElement(Text, { style: styles.attachmentTitle }, typeLabel),
-              React.createElement(Text, { style: styles.attachmentSubtitle }, invoice.invoiceNumber)
+              { style: styles.attachmentHeader },
+              React.createElement(
+                View,
+                null,
+                React.createElement(Text, { style: styles.attachmentTitle }, "Attachments"),
+                React.createElement(Text, { style: styles.attachmentSubtitle }, invoice.invoiceNumber)
+              ),
+              React.createElement(
+                Text,
+                { style: styles.attachmentCounter },
+                totalAttachmentPages > 1
+                  ? `${startIndex + 1}-${endIndex} of ${imageAttachments.length}`
+                  : `${imageAttachments.length} file${imageAttachments.length > 1 ? 's' : ''}`
+              )
             ),
-            React.createElement(Text, { style: styles.attachmentCounter }, `${index + 1} of ${imageAttachments.length}`)
+            // Grid of attachments
+            React.createElement(
+              View,
+              { style: styles.attachmentGrid },
+              ...pageAttachments.map((attachment, index) =>
+                React.createElement(
+                  View,
+                  { key: index, style: styles.attachmentItem },
+                  React.createElement(
+                    View,
+                    { style: styles.attachmentImageContainer },
+                    React.createElement(Image, {
+                      style: styles.attachmentImage,
+                      src: attachment.data,
+                    })
+                  ),
+                  React.createElement(Text, { style: styles.attachmentFilename }, attachment.filename),
+                  React.createElement(Text, { style: styles.attachmentType }, getAttachmentTypeLabel(attachment.attachmentType))
+                )
+              )
+            )
           ),
-          // Image
-          React.createElement(
-            View,
-            { style: styles.attachmentImageContainer },
-            React.createElement(Image, {
-              style: styles.attachmentImage,
-              src: attachment.data,
-            }),
-            React.createElement(Text, { style: styles.attachmentFilename }, attachment.filename)
-          )
-        ),
-        // Page number
-        React.createElement(Text, { style: styles.pageNumber }, `Page ${index + 2}`)
-      )
-    );
-  });
+          // Page number
+          React.createElement(Text, { style: styles.pageNumber }, `Page ${pageNumber}`)
+        )
+      );
+    }
+  }
 
   return React.createElement(Document, null, ...pages);
 };
