@@ -3,6 +3,27 @@ import { z } from "zod";
 // Email validation regex
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Service type schema (defined early for use in invoiceItemSchema)
+const serviceTypeSchemaBase = z.enum(["trip", "meals", "travel", "standard"]);
+const travelSubtypeSchemaBase = z.enum(["rental_car", "uber", "hotel", "flight", "parking", "other"]);
+
+// Trip leg schema (defined early for use in invoiceItemSchema)
+const tripLegSchemaBase = z.object({
+  id: z.string().uuid().optional(),
+  legOrder: z.number().min(1).max(100),
+  fromAirport: z
+    .string()
+    .min(3, "Airport code must be at least 3 characters")
+    .max(10, "Airport code must be less than 10 characters"),
+  toAirport: z
+    .string()
+    .min(3, "Airport code must be at least 3 characters")
+    .max(10, "Airport code must be less than 10 characters"),
+  tripDate: z.string().optional(),
+  tripDateEnd: z.string().optional(),
+  passengers: z.string().max(500).optional(),
+});
+
 // Invoice item schema
 export const invoiceItemSchema = z.object({
   title: z
@@ -24,6 +45,9 @@ export const invoiceItemSchema = z.object({
     .number()
     .min(0, "Unit price cannot be negative")
     .max(999999.99, "Unit price must be less than $999,999.99"),
+  serviceType: serviceTypeSchemaBase.optional(),
+  travelSubtype: travelSubtypeSchemaBase.optional(),
+  legs: z.array(tripLegSchemaBase).optional(),
 });
 
 // Item template schema
@@ -34,6 +58,33 @@ export const itemTemplateSchema = z.object({
     .min(1, "Content is required")
     .max(2000, "Content must be less than 2000 characters")
     .trim(),
+});
+
+// Export service type and travel subtype schemas
+export const serviceTypeSchema = serviceTypeSchemaBase;
+export const travelSubtypeSchema = travelSubtypeSchemaBase;
+export const tripLegSchema = tripLegSchemaBase;
+
+// Service template schema
+export const serviceTemplateSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(200, "Name must be less than 200 characters")
+    .trim(),
+  description: z
+    .string()
+    .max(2000, "Description must be less than 2000 characters")
+    .trim()
+    .optional()
+    .default(""),
+  serviceType: serviceTypeSchema.default("standard"),
+  defaultPrice: z
+    .number()
+    .min(0, "Price cannot be negative")
+    .max(999999.99, "Price must be less than $999,999.99")
+    .default(0),
+  travelSubtype: travelSubtypeSchema.optional(),
 });
 
 // Invoice status values

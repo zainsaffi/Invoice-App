@@ -157,6 +157,8 @@ export interface InvoiceItemRow {
   unit_price: number;
   total: number;
   invoice_id: string;
+  service_type: string | null;
+  travel_subtype: string | null;
 }
 
 export interface ItemTemplateRow {
@@ -197,6 +199,46 @@ export interface RateLimitRow {
   key: string;
   count: number;
   window_start: Date;
+}
+
+export interface ServiceTemplateRow {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  service_type: string;
+  default_price: number;
+  travel_subtype: string | null;
+  usage_count: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TripLegRow {
+  id: string;
+  invoice_item_id: string;
+  leg_order: number;
+  from_airport: string;
+  to_airport: string;
+  trip_date: Date | null;
+  trip_date_end: Date | null;
+  passengers: string | null;
+  created_at: Date;
+}
+
+export interface CustomerRow {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  business_name: string | null;
+  address: string | null;
+  phone: string | null;
+  notes: string | null;
+  invoice_count: number;
+  total_billed: number;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // Convert invoice row to camelCase
@@ -283,6 +325,8 @@ export function toInvoiceItem(row: InvoiceItemRow) {
     unitPrice: Number(row.unit_price),
     total: Number(row.total),
     invoiceId: row.invoice_id,
+    serviceType: row.service_type,
+    travelSubtype: row.travel_subtype,
   };
 }
 
@@ -310,5 +354,54 @@ export function toReceipt(row: ReceiptRow) {
     invoiceId: row.invoice_id,
     attachmentType: row.attachment_type,
     createdAt: row.created_at,
+  };
+}
+
+// Convert service template row to camelCase
+export function toServiceTemplate(row: ServiceTemplateRow) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    description: row.description || "",
+    serviceType: row.service_type,
+    defaultPrice: Number(row.default_price),
+    travelSubtype: row.travel_subtype,
+    usageCount: Number(row.usage_count),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// Convert trip leg row to camelCase
+export function toTripLeg(row: TripLegRow) {
+  return {
+    id: row.id,
+    invoiceItemId: row.invoice_item_id,
+    legOrder: Number(row.leg_order),
+    fromAirport: row.from_airport,
+    toAirport: row.to_airport,
+    tripDate: row.trip_date ? row.trip_date.toISOString().split('T')[0] : null,
+    tripDateEnd: row.trip_date_end ? row.trip_date_end.toISOString().split('T')[0] : null,
+    passengers: row.passengers,
+    createdAt: row.created_at,
+  };
+}
+
+// Convert customer row to camelCase
+export function toCustomer(row: CustomerRow) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    email: row.email,
+    businessName: row.business_name,
+    address: row.address,
+    phone: row.phone,
+    notes: row.notes,
+    invoiceCount: Number(row.invoice_count || 0),
+    totalBilled: Number(row.total_billed || 0),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }

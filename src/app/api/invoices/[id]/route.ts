@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, PaymentRow, toInvoice, toInvoiceItem, toReceipt, toPayment } from "@/db";
+import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, PaymentRow, TripLegRow, toInvoice, toInvoiceItem, toReceipt, toPayment, toTripLeg } from "@/db";
 import { v4 as uuid } from "uuid";
 import { auth } from "@/lib/auth";
 import { updateInvoiceSchema, uuidSchema, validateInput } from "@/lib/validations";
@@ -49,7 +49,7 @@ export async function GET(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    // Fetch items, receipts, and payments
+    // Fetch items, receipts, payments, and trip legs
     const itemRows = await queryMany<InvoiceItemRow>(
       "SELECT * FROM invoice_items WHERE invoice_id = $1",
       [id]
@@ -65,9 +65,25 @@ export async function GET(
       [id]
     );
 
+    // Fetch trip legs for all items
+    const itemIds = itemRows.map((item) => item.id);
+    let tripLegRows: TripLegRow[] = [];
+    if (itemIds.length > 0) {
+      tripLegRows = await queryMany<TripLegRow>(
+        `SELECT * FROM trip_legs WHERE invoice_item_id = ANY($1) ORDER BY leg_order`,
+        [itemIds]
+      );
+    }
+
     const invoice = {
       ...toInvoice(invoiceRow),
-      items: itemRows.map(toInvoiceItem),
+      items: itemRows.map((itemRow) => {
+        const item = toInvoiceItem(itemRow);
+        const legs = tripLegRows
+          .filter((leg) => leg.invoice_item_id === itemRow.id)
+          .map(toTripLeg);
+        return { ...item, legs: legs.length > 0 ? legs : undefined };
+      }),
       receipts: receiptRows.map(toReceipt),
       payments: paymentRows.map(toPayment),
     };
@@ -152,7 +168,7 @@ export async function PUT(
     );
     const total = subtotal + tax;
 
-    // Delete existing items
+    // Delete existing items (trip_legs will cascade)
     await query("DELETE FROM invoice_items WHERE invoice_id = $1", [id]);
 
     // Update invoice
@@ -188,24 +204,38 @@ export async function PUT(
       ]
     );
 
-    // Insert new items
+    // Insert new items with service type and trip legs
     for (const item of items) {
+      const itemId = uuid();
       await query(
-        `INSERT INTO invoice_items (id, invoice_id, title, description, quantity, unit_price, total)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO invoice_items (id, invoice_id, title, description, quantity, unit_price, total, service_type, travel_subtype)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
-          uuid(),
+          itemId,
           id,
           item.title,
           item.description || "",
           item.quantity,
           item.unitPrice,
           item.quantity * item.unitPrice,
+          item.serviceType || 'standard',
+          item.travelSubtype || null,
         ]
       );
+
+      // Insert trip legs if this is a trip-type item
+      if (item.serviceType === 'trip' && item.legs && item.legs.length > 0) {
+        for (const leg of item.legs) {
+          await query(
+            `INSERT INTO trip_legs (id, invoice_item_id, leg_order, from_airport, to_airport, trip_date, trip_date_end, passengers)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [uuid(), itemId, leg.legOrder, leg.fromAirport.toUpperCase(), leg.toAirport.toUpperCase(), leg.tripDate ? new Date(leg.tripDate) : null, leg.tripDateEnd ? new Date(leg.tripDateEnd) : null, leg.passengers || null]
+          );
+        }
+      }
     }
 
-    // Fetch updated invoice
+    // Fetch updated invoice with items and trip legs
     const invoiceRow = await queryOne<InvoiceRow>(
       "SELECT * FROM invoices WHERE id = $1",
       [id]
@@ -216,10 +246,25 @@ export async function PUT(
       [id]
     );
 
+    const itemIds = itemRows.map((item) => item.id);
+    let tripLegRows: TripLegRow[] = [];
+    if (itemIds.length > 0) {
+      tripLegRows = await queryMany<TripLegRow>(
+        `SELECT * FROM trip_legs WHERE invoice_item_id = ANY($1) ORDER BY leg_order`,
+        [itemIds]
+      );
+    }
+
     const invoice = invoiceRow
       ? {
           ...toInvoice(invoiceRow),
-          items: itemRows.map(toInvoiceItem),
+          items: itemRows.map((itemRow) => {
+            const item = toInvoiceItem(itemRow);
+            const legs = tripLegRows
+              .filter((leg) => leg.invoice_item_id === itemRow.id)
+              .map(toTripLeg);
+            return { ...item, legs: legs.length > 0 ? legs : undefined };
+          }),
         }
       : null;
 

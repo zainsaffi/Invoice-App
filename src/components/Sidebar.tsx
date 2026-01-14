@@ -13,11 +13,13 @@ import {
   Plus,
   ChevronRight,
   LogOut,
+  Package,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutGrid },
   { name: "Invoices", href: "/invoices", icon: FileText },
+  { name: "Services", href: "/services", icon: Package },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
