@@ -89,7 +89,7 @@ export const serviceTemplateSchema = z.object({
 
 // Invoice status values
 export const invoiceStatusSchema = z.enum([
-  "draft", "due", "paid", "shipped", "completed", "refunded", "cancelled", "in_progress"
+  "draft", "due", "sent", "paid", "shipped", "completed", "refunded", "cancelled", "in_progress"
 ]);
 
 // Create invoice schema

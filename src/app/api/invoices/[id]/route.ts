@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, PaymentRow, TripLegRow, toInvoice, toInvoiceItem, toReceipt, toPayment, toTripLeg } from "@/db";
+import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, PaymentRow, TripLegRow, StatusHistoryRow, toInvoice, toInvoiceItem, toReceipt, toPayment, toTripLeg, toStatusHistory } from "@/db";
 import { v4 as uuid } from "uuid";
 import { auth } from "@/lib/auth";
 import { updateInvoiceSchema, uuidSchema, validateInput } from "@/lib/validations";
@@ -75,6 +75,12 @@ export async function GET(
       );
     }
 
+    // Fetch status history
+    const statusHistoryRows = await queryMany<StatusHistoryRow>(
+      "SELECT * FROM status_history WHERE invoice_id = $1 ORDER BY changed_at DESC",
+      [id]
+    );
+
     const invoice = {
       ...toInvoice(invoiceRow),
       items: itemRows.map((itemRow) => {
@@ -86,6 +92,7 @@ export async function GET(
       }),
       receipts: receiptRows.map(toReceipt),
       payments: paymentRows.map(toPayment),
+      statusHistory: statusHistoryRows.map(toStatusHistory),
     };
 
     // Audit log
@@ -134,9 +141,12 @@ export async function PUT(
       return rateLimitResponse(rateLimit.resetAt);
     }
 
-    // Authorization: check ownership
-    const isOwner = await checkInvoiceOwnership(id, session.user.id);
-    if (!isOwner) {
+    // Authorization: check ownership and get current status
+    const currentInvoice = await queryOne<InvoiceRow>(
+      "SELECT * FROM invoices WHERE id = $1 AND user_id = $2",
+      [id, session.user.id]
+    );
+    if (!currentInvoice) {
       return forbiddenResponse();
     }
 
@@ -203,6 +213,15 @@ export async function PUT(
         id,
       ]
     );
+
+    // Track status change if status has changed
+    if (status && status !== currentInvoice.status) {
+      await query(
+        `INSERT INTO status_history (id, invoice_id, status, changed_at)
+         VALUES ($1, $2, $3, $4)`,
+        [uuid(), id, status, new Date()]
+      );
+    }
 
     // Insert new items with service type and trip legs
     for (const item of items) {

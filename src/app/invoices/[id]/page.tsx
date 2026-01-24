@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import { Invoice, AttachmentType, ATTACHMENT_TYPES, getAttachmentTypeLabel } from "@/types/invoice";
+import { Invoice, AttachmentType, ATTACHMENT_TYPES, getAttachmentTypeLabel, StatusHistory, INVOICE_STATUSES } from "@/types/invoice";
 import { formatCurrency, formatDate, getDisplayStatus, getDisplayStatusBadge } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -28,6 +28,7 @@ import {
   AlertCircle,
   Tag,
   Eye,
+  History,
 } from "lucide-react";
 
 export default function InvoiceDetailPage({
@@ -680,6 +681,42 @@ export default function InvoiceDetailPage({
                   )}
                 </div>
               </div>
+
+              {/* Status History */}
+              {invoice.statusHistory && invoice.statusHistory.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center">
+                      <History className="w-5 h-5 text-violet-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Status History</h2>
+                      <p className="text-sm text-gray-500">{invoice.statusHistory.length} status change{invoice.statusHistory.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {invoice.statusHistory.map((history) => {
+                      const statusInfo = INVOICE_STATUSES.find(s => s.value === history.status);
+                      return (
+                        <div key={history.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <CheckCircle className="w-4 h-4 text-violet-600" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              Changed to <span className="text-violet-600">{statusInfo?.label || history.status}</span>
+                            </p>
+                            <p className="text-xs text-gray-500">{formatDate(history.changedAt)}</p>
+                            {history.notes && (
+                              <p className="text-xs text-gray-400 mt-1">{history.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Payment Instructions */}
               {invoice.paymentInstructions && (

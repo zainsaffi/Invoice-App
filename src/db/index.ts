@@ -241,6 +241,15 @@ export interface CustomerRow {
   updated_at: Date;
 }
 
+export interface StatusHistoryRow {
+  id: string;
+  invoice_id: string;
+  status: string;
+  changed_at: Date;
+  notes: string | null;
+  created_at: Date;
+}
+
 // Convert invoice row to camelCase
 export function toInvoice(row: InvoiceRow) {
   return {
@@ -403,5 +412,17 @@ export function toCustomer(row: CustomerRow) {
     totalBilled: Number(row.total_billed || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+// Convert status history row to camelCase
+export function toStatusHistory(row: StatusHistoryRow) {
+  return {
+    id: row.id,
+    invoiceId: row.invoice_id,
+    status: row.status,
+    changedAt: row.changed_at,
+    notes: row.notes,
+    createdAt: row.created_at,
   };
 }

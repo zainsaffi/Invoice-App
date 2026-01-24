@@ -137,12 +137,14 @@ export interface Invoice {
   createdAt: string | Date;
   updatedAt: string | Date;
   user?: InvoiceUser;
+  statusHistory?: StatusHistory[];
 }
 
-export type InvoiceStatus = 'draft' | 'due' | 'paid' | 'shipped' | 'completed' | 'refunded' | 'cancelled' | 'in_progress';
+export type InvoiceStatus = 'draft' | 'due' | 'sent' | 'paid' | 'shipped' | 'completed' | 'refunded' | 'cancelled' | 'in_progress';
 
 export const INVOICE_STATUSES: { value: InvoiceStatus; label: string }[] = [
   { value: 'due', label: 'Due' },
+  { value: 'sent', label: 'Sent' },
   { value: 'paid', label: 'Paid' },
   { value: 'shipped', label: 'Shipped' },
   { value: 'completed', label: 'Completed' },
@@ -151,6 +153,15 @@ export const INVOICE_STATUSES: { value: InvoiceStatus; label: string }[] = [
   { value: 'in_progress', label: 'In Progress' },
   { value: 'draft', label: 'Draft' },
 ];
+
+// Status History for tracking status changes
+export interface StatusHistory {
+  id: string;
+  invoiceId: string;
+  status: InvoiceStatus;
+  changedAt: string | Date;
+  notes?: string;
+}
 
 export interface InvoiceFormData {
   invoiceNumber?: string;
