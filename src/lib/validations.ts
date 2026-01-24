@@ -39,7 +39,7 @@ export const invoiceItemSchema = z.object({
     .default(""),
   quantity: z
     .number()
-    .min(1, "Quantity must be at least 1")
+    .min(0.01, "Quantity must be at least 0.01")
     .max(999999, "Quantity must be less than 999,999"),
   unitPrice: z
     .number()
