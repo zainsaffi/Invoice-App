@@ -76,25 +76,43 @@ export function getDisplayStatus(invoice: {
     return "paid";
   }
 
-  // If not sent yet, it's a draft
-  if (invoice.status === "draft" || !invoice.emailSentAt) return "draft";
+  // If status is explicitly draft, return draft
+  if (invoice.status === "draft") return "draft";
 
-  // If sent, check due date
-  if (invoice.dueDate) {
-    const now = new Date();
-    const dueDate = new Date(invoice.dueDate);
-    // Set time to end of day for due date comparison
-    dueDate.setHours(23, 59, 59, 999);
-
-    if (now > dueDate) {
-      return "overdue";
-    } else {
-      return "due";
+  // If status is sent, check due date for overdue
+  if (invoice.status === "sent" || invoice.emailSentAt) {
+    if (invoice.dueDate) {
+      const now = new Date();
+      const dueDate = new Date(invoice.dueDate);
+      dueDate.setHours(23, 59, 59, 999);
+      if (now > dueDate) {
+        return "overdue";
+      }
     }
+    return "sent";
   }
 
-  // Sent but no due date
-  return "sent";
+  // If status is due, check for overdue
+  if (invoice.status === "due") {
+    if (invoice.dueDate) {
+      const now = new Date();
+      const dueDate = new Date(invoice.dueDate);
+      dueDate.setHours(23, 59, 59, 999);
+      if (now > dueDate) {
+        return "overdue";
+      }
+    }
+    return "due";
+  }
+
+  // Default to the status as-is if it's a valid display status
+  const validStatuses: DisplayStatus[] = ["draft", "sent", "due", "overdue", "partial", "paid", "cancelled"];
+  if (validStatuses.includes(invoice.status as DisplayStatus)) {
+    return invoice.status as DisplayStatus;
+  }
+
+  // Fallback to draft for unknown statuses
+  return "draft";
 }
 
 export function getDisplayStatusBadge(status: DisplayStatus): { bg: string; text: string; label: string } {
