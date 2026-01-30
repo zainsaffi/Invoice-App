@@ -221,6 +221,14 @@ export async function PUT(
          VALUES ($1, $2, $3, $4)`,
         [uuid(), id, status, new Date()]
       );
+
+      // Set paid_at when status changes to paid
+      if (status === "paid") {
+        await query(
+          `UPDATE invoices SET paid_at = NOW() WHERE id = $1 AND paid_at IS NULL`,
+          [id]
+        );
+      }
     }
 
     // Insert new items with service type and trip legs
