@@ -61,7 +61,7 @@ export default async function Dashboard() {
     .filter((inv) => inv.status === "paid")
     .map((inv) => ({
       date: new Date(inv.createdAt).toISOString().split("T")[0],
-      amount: inv.total,
+      amount: Number(inv.total) || 0,
       paidAt: inv.paidAt ? new Date(inv.paidAt).toISOString() : null,
       clientName: inv.clientName,
       clientEmail: inv.clientEmail,

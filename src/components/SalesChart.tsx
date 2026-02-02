@@ -545,8 +545,8 @@ export default function SalesChart({ salesData }: SalesChartProps) {
           </div>
         ) : (
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              {chartType === "area" ? (
+            {chartType === "area" ? (
+              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={chartData}
                   margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
@@ -600,15 +600,17 @@ export default function SalesChart({ salesData }: SalesChartProps) {
                     }}
                   />
                 </AreaChart>
-              ) : (
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
                   margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
                 >
                   <defs>
                     <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366F1" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#818CF8" stopOpacity={0.8} />
+                      <stop offset="0%" stopColor="#10B981" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#34D399" stopOpacity={0.8} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -634,7 +636,7 @@ export default function SalesChart({ salesData }: SalesChartProps) {
                     dx={-10}
                     domain={[0, maxSales * 1.1]}
                   />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(99, 102, 241, 0.1)" }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(16, 185, 129, 0.1)" }} />
                   <Bar
                     dataKey="sales"
                     fill="url(#barGradient)"
@@ -642,8 +644,8 @@ export default function SalesChart({ salesData }: SalesChartProps) {
                     maxBarSize={50}
                   />
                 </BarChart>
-              )}
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            )}
           </div>
         )}
       </div>
