@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, queryMany, InvoiceRow, InvoiceItemRow, ReceiptRow, UserRow, TripLegRow, toInvoice, toInvoiceItem, toReceipt, toTripLeg } from "@/db";
 import { v4 as uuid } from "uuid";
-import { generateInvoiceNumber } from "@/lib/utils";
 import { auth } from "@/lib/auth";
 import { createInvoiceSchema, validateInput } from "@/lib/validations";
 import {
@@ -12,6 +11,32 @@ import {
   validateCsrfToken,
   logAudit,
 } from "@/lib/security";
+
+// Generate sequential invoice number in format INV000000
+async function generateSequentialInvoiceNumber(userId: string, prefix: string = "INV"): Promise<string> {
+  // Get the highest invoice number for this user
+  const result = await queryOne<{ invoice_number: string }>(
+    `SELECT invoice_number FROM invoices
+     WHERE user_id = $1 AND invoice_number ~ '^[A-Z]+[0-9]+$'
+     ORDER BY CAST(REGEXP_REPLACE(invoice_number, '^[A-Z]+', '') AS INTEGER) DESC
+     LIMIT 1`,
+    [userId]
+  );
+
+  let nextNumber = 1;
+
+  if (result?.invoice_number) {
+    // Extract the numeric part from the invoice number (e.g., "INV001085" -> 1085)
+    const numericPart = result.invoice_number.replace(/^[A-Z]+/, '');
+    const currentNumber = parseInt(numericPart, 10);
+    if (!isNaN(currentNumber)) {
+      nextNumber = currentNumber + 1;
+    }
+  }
+
+  // Format as prefix + 6-digit zero-padded number (e.g., INV001086)
+  return `${prefix}${nextNumber.toString().padStart(6, '0')}`;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -134,7 +159,7 @@ export async function POST(request: NextRequest) {
     );
 
     const invoiceId = uuid();
-    const invoiceNumber = generateInvoiceNumber(userRow?.invoice_prefix || "INV");
+    const invoiceNumber = await generateSequentialInvoiceNumber(session.user.id, userRow?.invoice_prefix || "INV");
 
     // Insert invoice
     await query(
