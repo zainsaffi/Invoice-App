@@ -222,10 +222,10 @@ export async function PUT(
         [uuid(), id, status, new Date()]
       );
 
-      // Set paid_at when status changes to paid
+      // Set paid_at and amount_paid when status changes to paid
       if (status === "paid") {
         await query(
-          `UPDATE invoices SET paid_at = NOW() WHERE id = $1 AND paid_at IS NULL`,
+          `UPDATE invoices SET paid_at = COALESCE(paid_at, NOW()), amount_paid = total WHERE id = $1`,
           [id]
         );
       }
