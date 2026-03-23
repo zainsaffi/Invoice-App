@@ -457,6 +457,79 @@ function isImageFile(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
+// Check if description contains tab-separated table data
+function isTabularDescription(description: string): boolean {
+  const lines = description.split('\n').filter(line => line.trim() !== '');
+  if (lines.length < 2) return false;
+  // Check if at least the first line and one data line contain tabs
+  return lines[0].includes('\t') && lines[1].includes('\t');
+}
+
+// Render tab-separated description as a structured table
+function renderTabularDescription(description: string): React.ReactElement {
+  const lines = description.split('\n').filter(line => line.trim() !== '');
+  const headerLine = lines[0];
+  const dataLines = lines.slice(1);
+
+  // Parse columns by splitting on tabs and trimming whitespace
+  const headers = headerLine.split('\t').map(h => h.trim()).filter(h => h !== '');
+  const rows = dataLines.map(line => {
+    const cols = line.split('\t').map(c => c.trim()).filter(c => c !== '');
+    return cols;
+  });
+
+  // Debug logging
+  console.log('=== PDF Table Debug ===');
+  console.log('Original headers:', headers);
+  console.log('Headers length:', headers.length);
+  console.log('First row:', rows[0]);
+
+  // Display all columns
+  const displayHeaders = headers;
+  const displayRows = rows;
+
+  console.log('Display headers:', displayHeaders);
+  console.log('Display rows sample:', displayRows.slice(0, 2));
+
+  // Column widths for 3 columns: Brand (15%), Project Name (60%), Hours (25%)
+  const colWidths = displayHeaders.length === 3
+    ? ["15%", "60%", "25%"]
+    : displayHeaders.length === 2
+    ? ["75%", "25%"]
+    : displayHeaders.map(() => `${Math.floor(100 / displayHeaders.length)}%`);
+
+  return React.createElement(
+    View,
+    { style: { marginTop: 6, borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 4, overflow: "hidden" } },
+    // Table header
+    React.createElement(
+      View,
+      { style: { flexDirection: "row", backgroundColor: "#4F46E5", paddingVertical: 6, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: "#4F46E5" } },
+      ...displayHeaders.map((header, i) =>
+        React.createElement(
+          Text,
+          { key: `h-${i}`, style: { width: colWidths[i], fontSize: 9, fontFamily: "Helvetica-Bold", color: "#FFFFFF", textAlign: i === displayHeaders.length - 1 ? "center" : "left", paddingHorizontal: 4, flexWrap: "wrap" } },
+          header
+        )
+      )
+    ),
+    // Data rows
+    ...displayRows.map((row, rowIndex) =>
+      React.createElement(
+        View,
+        { key: `r-${rowIndex}`, style: { flexDirection: "row", paddingVertical: 5, paddingHorizontal: 8, borderBottomWidth: rowIndex < displayRows.length - 1 ? 0.5 : 0, borderBottomColor: "#E5E7EB", backgroundColor: rowIndex % 2 === 1 ? "#F9FAFB" : "#FFFFFF", minHeight: 20 } },
+        ...displayHeaders.map((_, colIndex) =>
+          React.createElement(
+            Text,
+            { key: `c-${rowIndex}-${colIndex}`, style: { width: colWidths[colIndex], fontSize: 8.5, color: "#374151", fontFamily: colIndex === 1 ? "Helvetica-Bold" : "Helvetica", textAlign: colIndex === displayHeaders.length - 1 ? "center" : "left", paddingHorizontal: 4, lineHeight: 1.4, flexWrap: "wrap" } },
+            row[colIndex] || "-"
+          )
+        )
+      )
+    )
+  );
+}
+
 // Helper to render item description with labels in bold
 function renderFormattedDescription(description: string, styles: any): React.ReactElement[] {
   const lines = description.split('\n').filter(line => line.trim() !== '');
@@ -643,25 +716,39 @@ const InvoicePDF = ({ invoice, imageAttachments, paymentDetails }: {
             React.createElement(Text, { style: [styles.tableHeaderText, styles.tableCol4] }, "Amount")
           ),
           // Table Rows
-          invoice.items.map((item: any, index: number) =>
-            React.createElement(
+          ...invoice.items.map((item: any, index: number) => {
+            const hasTabularDesc = item.description && isTabularDescription(item.description);
+            const hasRegularDesc = item.description && !hasTabularDesc;
+
+            return React.createElement(
               View,
-              { key: index, style: [styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}] },
+              { key: index, style: { borderBottomWidth: 1, borderBottomColor: "#F3F4F6" } },
+              // Main item row with title, qty, price, amount
               React.createElement(
                 View,
-                { style: styles.tableCol1 },
-                React.createElement(Text, { style: styles.itemTitle }, item.title || "Item"),
-                item.description && React.createElement(
+                { style: [styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}, { borderBottomWidth: 0 }] },
+                React.createElement(
                   View,
-                  { style: { marginTop: 4 } },
-                  ...renderFormattedDescription(item.description, styles)
-                )
+                  { style: styles.tableCol1 },
+                  React.createElement(Text, { style: styles.itemTitle }, item.title || "Item"),
+                  hasRegularDesc && React.createElement(
+                    View,
+                    { style: { marginTop: 4 } },
+                    ...renderFormattedDescription(item.description, styles)
+                  )
+                ),
+                React.createElement(Text, { style: [styles.tableText, styles.tableCol2] }, item.quantity.toString()),
+                React.createElement(Text, { style: [styles.tableText, styles.tableCol3] }, formatCurrency(item.unitPrice)),
+                React.createElement(Text, { style: [styles.tableTextBold, styles.tableCol4] }, formatCurrency(item.total || item.quantity * item.unitPrice))
               ),
-              React.createElement(Text, { style: [styles.tableText, styles.tableCol2] }, item.quantity.toString()),
-              React.createElement(Text, { style: [styles.tableText, styles.tableCol3] }, formatCurrency(item.unitPrice)),
-              React.createElement(Text, { style: [styles.tableTextBold, styles.tableCol4] }, formatCurrency(item.total || item.quantity * item.unitPrice))
-            )
-          )
+              // Tabular description rendered as full-width sub-table below the item row
+              hasTabularDesc && React.createElement(
+                View,
+                { style: { paddingHorizontal: 10, paddingBottom: 8 } },
+                renderTabularDescription(item.description)
+              )
+            );
+          })
         ),
         // Totals
         React.createElement(
