@@ -2,15 +2,14 @@
 -- PostgreSQL database dump
 --
 
-\restrict hghqVdC0pUOe0rPdsjvD7tZvwIuJ7hi4wnny5q5IAFpOJoCoeMaNleCIHco6ocC
+\restrict en6BcjY6wzUlFaKFbzD0GGXqik0fhINfupf5R19X5DrREgXi9h4RJbkMGxrlZeq
 
--- Dumped from database version 17.7 (Homebrew)
--- Dumped by pg_dump version 17.7 (Homebrew)
+-- Dumped from database version 16.10 (Homebrew)
+-- Dumped by pg_dump version 16.10 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -19,6 +18,76 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+ALTER TABLE IF EXISTS ONLY public.trip_legs DROP CONSTRAINT IF EXISTS trip_legs_invoice_item_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.status_history DROP CONSTRAINT IF EXISTS status_history_invoice_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.service_templates DROP CONSTRAINT IF EXISTS service_templates_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.receipts DROP CONSTRAINT IF EXISTS receipts_invoice_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.payments DROP CONSTRAINT IF EXISTS payments_invoice_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.item_templates DROP CONSTRAINT IF EXISTS item_templates_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.invoices DROP CONSTRAINT IF EXISTS invoices_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.invoices DROP CONSTRAINT IF EXISTS invoices_customer_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.invoice_items DROP CONSTRAINT IF EXISTS invoice_items_invoice_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.customers DROP CONSTRAINT IF EXISTS customers_user_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.audit_logs DROP CONSTRAINT IF EXISTS audit_logs_user_id_fkey;
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
+DROP TRIGGER IF EXISTS update_service_templates_updated_at ON public.service_templates;
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON public.invoices;
+DROP TRIGGER IF EXISTS update_customers_updated_at ON public.customers;
+DROP INDEX IF EXISTS public.idx_trip_legs_order;
+DROP INDEX IF EXISTS public.idx_trip_legs_item;
+DROP INDEX IF EXISTS public.idx_status_history_invoice_id;
+DROP INDEX IF EXISTS public.idx_status_history_changed_at;
+DROP INDEX IF EXISTS public.idx_service_templates_user;
+DROP INDEX IF EXISTS public.idx_service_templates_usage;
+DROP INDEX IF EXISTS public.idx_service_templates_type;
+DROP INDEX IF EXISTS public.idx_receipts_invoice_id;
+DROP INDEX IF EXISTS public.idx_rate_limits_key;
+DROP INDEX IF EXISTS public.idx_payments_paid_at;
+DROP INDEX IF EXISTS public.idx_payments_invoice_id;
+DROP INDEX IF EXISTS public.idx_item_templates_user_type;
+DROP INDEX IF EXISTS public.idx_item_templates_usage;
+DROP INDEX IF EXISTS public.idx_invoices_user_id;
+DROP INDEX IF EXISTS public.idx_invoices_status;
+DROP INDEX IF EXISTS public.idx_invoices_payment_token;
+DROP INDEX IF EXISTS public.idx_invoices_customer;
+DROP INDEX IF EXISTS public.idx_invoices_created_at;
+DROP INDEX IF EXISTS public.idx_invoice_items_invoice_id;
+DROP INDEX IF EXISTS public.idx_customers_user;
+DROP INDEX IF EXISTS public.idx_customers_name;
+DROP INDEX IF EXISTS public.idx_customers_email;
+DROP INDEX IF EXISTS public.idx_audit_logs_user_id;
+DROP INDEX IF EXISTS public.idx_audit_logs_created_at;
+ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_pkey;
+ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_email_key;
+ALTER TABLE IF EXISTS ONLY public.trip_legs DROP CONSTRAINT IF EXISTS trip_legs_pkey;
+ALTER TABLE IF EXISTS ONLY public.status_history DROP CONSTRAINT IF EXISTS status_history_pkey;
+ALTER TABLE IF EXISTS ONLY public.service_templates DROP CONSTRAINT IF EXISTS service_templates_pkey;
+ALTER TABLE IF EXISTS ONLY public.receipts DROP CONSTRAINT IF EXISTS receipts_pkey;
+ALTER TABLE IF EXISTS ONLY public.rate_limits DROP CONSTRAINT IF EXISTS rate_limits_pkey;
+ALTER TABLE IF EXISTS ONLY public.rate_limits DROP CONSTRAINT IF EXISTS rate_limits_key_key;
+ALTER TABLE IF EXISTS ONLY public.payments DROP CONSTRAINT IF EXISTS payments_pkey;
+ALTER TABLE IF EXISTS ONLY public.item_templates DROP CONSTRAINT IF EXISTS item_templates_user_id_type_content_key;
+ALTER TABLE IF EXISTS ONLY public.item_templates DROP CONSTRAINT IF EXISTS item_templates_pkey;
+ALTER TABLE IF EXISTS ONLY public.invoices DROP CONSTRAINT IF EXISTS invoices_pkey;
+ALTER TABLE IF EXISTS ONLY public.invoices DROP CONSTRAINT IF EXISTS invoices_payment_token_key;
+ALTER TABLE IF EXISTS ONLY public.invoices DROP CONSTRAINT IF EXISTS invoices_invoice_number_key;
+ALTER TABLE IF EXISTS ONLY public.invoice_items DROP CONSTRAINT IF EXISTS invoice_items_pkey;
+ALTER TABLE IF EXISTS ONLY public.customers DROP CONSTRAINT IF EXISTS customers_pkey;
+ALTER TABLE IF EXISTS ONLY public.audit_logs DROP CONSTRAINT IF EXISTS audit_logs_pkey;
+DROP TABLE IF EXISTS public.users;
+DROP TABLE IF EXISTS public.trip_legs;
+DROP TABLE IF EXISTS public.status_history;
+DROP TABLE IF EXISTS public.service_templates;
+DROP TABLE IF EXISTS public.receipts;
+DROP TABLE IF EXISTS public.rate_limits;
+DROP TABLE IF EXISTS public.payments;
+DROP TABLE IF EXISTS public.item_templates;
+DROP TABLE IF EXISTS public.invoices;
+DROP TABLE IF EXISTS public.invoice_items;
+DROP TABLE IF EXISTS public.customers;
+DROP TABLE IF EXISTS public.audit_logs;
+DROP FUNCTION IF EXISTS public.update_updated_at_column();
+DROP EXTENSION IF EXISTS "uuid-ossp";
 --
 -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
 --
@@ -34,7 +103,7 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 
 --
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: zainsaffi
+-- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: mac
 --
 
 CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
@@ -47,14 +116,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.update_updated_at_column() OWNER TO zainsaffi;
+ALTER FUNCTION public.update_updated_at_column() OWNER TO mac;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: audit_logs; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: audit_logs; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.audit_logs (
@@ -70,10 +139,10 @@ CREATE TABLE public.audit_logs (
 );
 
 
-ALTER TABLE public.audit_logs OWNER TO zainsaffi;
+ALTER TABLE public.audit_logs OWNER TO mac;
 
 --
--- Name: customers; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: customers; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.customers (
@@ -92,10 +161,10 @@ CREATE TABLE public.customers (
 );
 
 
-ALTER TABLE public.customers OWNER TO zainsaffi;
+ALTER TABLE public.customers OWNER TO mac;
 
 --
--- Name: invoice_items; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: invoice_items; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.invoice_items (
@@ -111,10 +180,10 @@ CREATE TABLE public.invoice_items (
 );
 
 
-ALTER TABLE public.invoice_items OWNER TO zainsaffi;
+ALTER TABLE public.invoice_items OWNER TO mac;
 
 --
--- Name: invoices; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: invoices; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.invoices (
@@ -149,10 +218,10 @@ CREATE TABLE public.invoices (
 );
 
 
-ALTER TABLE public.invoices OWNER TO zainsaffi;
+ALTER TABLE public.invoices OWNER TO mac;
 
 --
--- Name: item_templates; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: item_templates; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.item_templates (
@@ -163,14 +232,14 @@ CREATE TABLE public.item_templates (
     usage_count integer DEFAULT 0,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT item_templates_type_check CHECK (((type)::text = ANY ((ARRAY['title'::character varying, 'description'::character varying])::text[])))
+    CONSTRAINT item_templates_type_check CHECK (((type)::text = ANY (ARRAY[('title'::character varying)::text, ('description'::character varying)::text])))
 );
 
 
-ALTER TABLE public.item_templates OWNER TO zainsaffi;
+ALTER TABLE public.item_templates OWNER TO mac;
 
 --
--- Name: payments; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: payments; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.payments (
@@ -185,10 +254,10 @@ CREATE TABLE public.payments (
 );
 
 
-ALTER TABLE public.payments OWNER TO zainsaffi;
+ALTER TABLE public.payments OWNER TO mac;
 
 --
--- Name: rate_limits; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: rate_limits; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.rate_limits (
@@ -199,10 +268,10 @@ CREATE TABLE public.rate_limits (
 );
 
 
-ALTER TABLE public.rate_limits OWNER TO zainsaffi;
+ALTER TABLE public.rate_limits OWNER TO mac;
 
 --
--- Name: receipts; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: receipts; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.receipts (
@@ -217,10 +286,10 @@ CREATE TABLE public.receipts (
 );
 
 
-ALTER TABLE public.receipts OWNER TO zainsaffi;
+ALTER TABLE public.receipts OWNER TO mac;
 
 --
--- Name: service_templates; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: service_templates; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.service_templates (
@@ -237,10 +306,10 @@ CREATE TABLE public.service_templates (
 );
 
 
-ALTER TABLE public.service_templates OWNER TO zainsaffi;
+ALTER TABLE public.service_templates OWNER TO mac;
 
 --
--- Name: status_history; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: status_history; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.status_history (
@@ -253,10 +322,10 @@ CREATE TABLE public.status_history (
 );
 
 
-ALTER TABLE public.status_history OWNER TO zainsaffi;
+ALTER TABLE public.status_history OWNER TO mac;
 
 --
--- Name: trip_legs; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: trip_legs; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.trip_legs (
@@ -272,10 +341,10 @@ CREATE TABLE public.trip_legs (
 );
 
 
-ALTER TABLE public.trip_legs OWNER TO zainsaffi;
+ALTER TABLE public.trip_legs OWNER TO mac;
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: zainsaffi
+-- Name: users; Type: TABLE; Schema: public; Owner: mac
 --
 
 CREATE TABLE public.users (
@@ -303,10 +372,10 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO zainsaffi;
+ALTER TABLE public.users OWNER TO mac;
 
 --
--- Data for Name: audit_logs; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: audit_logs; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.audit_logs (id, action, entity, entity_id, details, ip_address, user_agent, user_id, created_at) FROM stdin;
@@ -1125,11 +1194,25 @@ eb7a3e65-3d2c-4f44-bd76-9b92d2bdbcc6	view	invoice	89d7f088-757c-4f14-ac2e-4bedc6
 a4135654-fae2-4532-8083-faccd9c76545	view	invoice	f8745777-3bfb-40ea-8c56-d54c8ff0faea	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-02 23:35:36.414694+05
 b44ab64f-5779-4d85-8f57-ec90655c4315	view	invoice	f8745777-3bfb-40ea-8c56-d54c8ff0faea	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-07 00:57:20.374182+05
 5fc3ce62-084b-4c66-a051-da75f0f6cb58	view	invoice	f8745777-3bfb-40ea-8c56-d54c8ff0faea	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-07 00:57:20.373626+05
+978bcad7-1485-4fd6-911c-26d5991c15c4	view	invoice	f8745777-3bfb-40ea-8c56-d54c8ff0faea	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:00:12.210346+05
+b42662b9-c10f-42cf-888f-37e7ba48b74a	view	invoice	f8745777-3bfb-40ea-8c56-d54c8ff0faea	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:00:12.286075+05
+57f8c75b-bb60-45de-9f39-3ebf6ccd790f	view	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:36.463574+05
+a7cfc519-c020-4a28-8c10-17f5d9167543	view	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:36.487948+05
+3a339c6a-e1e4-4cca-851c-2c85b76450f1	view	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:39.794363+05
+5806c4d0-eeb2-4c1c-b700-695f8c89290f	view	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:39.811857+05
+ac97efc2-100d-4c10-9439-44ad6029280c	update	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	{"invoiceNumber": "INV001094"}	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:44.178217+05
+ef0beea1-0487-4160-9804-3ac8d0d59272	view	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:44.240028+05
+ff93d5c9-a355-4824-83d4-2e08712f5823	view	invoice	89d7f088-757c-4f14-ac2e-4bedc675cddd	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 21:01:44.264941+05
+1c946505-716e-4a06-980e-a7cd3fd7581c	view	invoice	fbc93fc2-e6f9-4903-b562-683797b25286	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 23:22:30.560903+05
+6d69e75a-9ccf-4357-a571-1fcf9bc8a102	view	invoice	fbc93fc2-e6f9-4903-b562-683797b25286	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 23:22:30.597667+05
+4fd70c3f-cf30-476e-9486-4d13dbc8dd94	create	invoice	7540f34a-efe8-413a-aa48-00e98cf4bce4	{"total": 1500, "invoiceNumber": "INV001096"}	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 23:26:21.623366+05
+b13304d3-789b-4feb-9dca-dbb761bf81c0	view	invoice	7540f34a-efe8-413a-aa48-00e98cf4bce4	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 23:26:21.730823+05
+043ccefb-3b7b-42f1-bec0-f1cc52bd297c	view	invoice	7540f34a-efe8-413a-aa48-00e98cf4bce4	\N	::1	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36	1c2242c0-c801-448c-9bb2-e295d7c218b5	2026-04-13 23:26:21.752043+05
 \.
 
 
 --
--- Data for Name: customers; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: customers; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.customers (id, user_id, name, email, business_name, address, phone, notes, invoice_count, total_billed, created_at, updated_at) FROM stdin;
@@ -1139,7 +1222,7 @@ a75d879e-26f1-47a5-ae5b-9bdde612b7f0	1c2242c0-c801-448c-9bb2-e295d7c218b5	Jon Or
 
 
 --
--- Data for Name: invoice_items; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: invoice_items; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.invoice_items (id, description, quantity, unit_price, total, invoice_id, title, service_type, travel_subtype) FROM stdin;
@@ -1173,13 +1256,14 @@ aed37998-1525-4321-80cd-7274000604e7	Pilot: Jordan Hardison\nTrip Dates: Feb 4, 
 1db9073f-6efb-4843-a004-85bd3ae47ff9	Chick-Fill-A - $20.80	1.00	20.80	20.80	99102b7d-0114-449b-a55d-0d54ee58dd90	Meal	standard	\N
 e974b860-cbf1-4c1c-b169-85e0d0064be8	Pilot: Jordan Hardison\nTrip Dates: Jan 16, 2026\nItinerary:\nLNA - BCT\nBCT - JAX\nLead Passenger: Yarah Ortlieb	0.50	1500.00	750.00	3181ddd4-96e2-4972-81de-2cd306bd4c28	CJ - PIC - Day Rate	standard	\N
 6e48df04-6d2f-4034-8694-620a92d24227	Chick - Fil - A	1.00	20.74	20.74	3181ddd4-96e2-4972-81de-2cd306bd4c28	Meals	standard	\N
-eb78a148-ad1a-42b7-8aef-5d2736287f7b	Brand\tProject Name\tActual Hours\nGG\tPress Page Mockup\t4:00:00\nGG\tInfluencer Guide Edits\t0:45:00\nCIR\tAdditional Ad Sizes (RFSA)\t4:30:00\nCIR\tUpdate Compsenation\t1:00:00\nGG\tSurrogacy by State - Overview Mockup\t3:50:00\nGG\tSurrogacy by State - FL Mockup\t4:10:00\nCIR\tAdditional Ad Sizes (RFSA) Pt 2\t1:00:00	19.25	50.00	962.50	89d7f088-757c-4f14-ac2e-4bedc675cddd	March Billing	standard	\N
 d73de70b-0915-457a-8907-022589f912bc	Pilot: Jordan Hardison\nTrip Dates: 12 March, 2026\nItinerary:\nLNA - FD38\nFD38 - LNA\nLead Passenger: Jim Ward	1.00	1500.00	1500.00	f8745777-3bfb-40ea-8c56-d54c8ff0faea	CJ - PIC - Day Rate	trip	\N
+6a0c94d9-4c09-4552-89b2-d24fe226b952	Brand\tProject Name\tActual Hours\nGG\tPress Page Mockup\t4:00:00\nGG\tInfluencer Guide Edits\t0:45:00\nCIR\tAdditional Ad Sizes (RFSA)\t4:30:00\nCIR\tUpdate Compsenation\t1:00:00\nGG\tSurrogacy by State - Overview Mockup\t3:50:00\nGG\tSurrogacy by State - FL Mockup\t4:10:00\nCIR\tAdditional Ad Sizes (RFSA) Pt 2\t1:00:00	19.25	50.00	962.50	89d7f088-757c-4f14-ac2e-4bedc675cddd	March Billing	standard	\N
+09b41ca9-ca4e-4457-928f-1d4201cc2a13	Pilot: Jordan Hardison\nTrip Dates: April 03, 2026\nItinerary:\nLNA-TLH\nTLH-VDF\nVDF-TLH\nTLH-BKV\nLead Passenger: Ben Albritton	1.00	1500.00	1500.00	7540f34a-efe8-413a-aa48-00e98cf4bce4	CJ - PIC - Day Rate	trip	\N
 \.
 
 
 --
--- Data for Name: invoices; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: invoices; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.invoices (id, invoice_number, user_id, client_name, client_email, client_business_name, client_address, description, subtotal, tax, total, status, email_sent_at, email_sent_to, paid_at, payment_method, stripe_checkout_session_id, stripe_payment_intent_id, payment_token, due_date, created_at, updated_at, payment_instructions, amount_paid, view_count, last_viewed_at, view_token, customer_id) FROM stdin;
@@ -1189,7 +1273,6 @@ COPY public.invoices (id, invoice_number, user_id, client_name, client_email, cl
 72379e88-a26b-41a9-9c96-29e34db41621	INV001083	1c2242c0-c801-448c-9bb2-e295d7c218b5	John Scott Hundley	accounting@helijetusa.com	Hundley Farms, Inc	P.O. Box H, Loxahatchee, Florida 33470, USA	\N	1540.43	0.00	1540.43	paid	\N	\N	2026-02-02 20:33:00.215809+05	\N	\N	\N	\N	2026-01-27 05:00:00+05	2026-01-28 17:33:19.833482+05	2026-03-02 20:20:13.585583+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	1540.43	0	\N	\N	73c2bf44-57f0-4116-969a-1a96f2004756
 c96d8142-4e0d-4f4b-93f7-01612b4ebcd8	INV001082	1c2242c0-c801-448c-9bb2-e295d7c218b5	Jon Ortlieb	accounting@helijetusa.com	ROMUXBE CONSULTING LLC	455 NE 5th Ave, Suite 328, Delray Beach 33483	\N	3383.61	0.00	3383.61	paid	\N	\N	2026-02-02 20:32:45.871202+05	\N	\N	\N	\N	2026-01-19 05:00:00+05	2026-01-22 00:04:22.223285+05	2026-02-02 20:32:45.871202+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	0.00	0	\N	\N	a75d879e-26f1-47a5-ae5b-9bdde612b7f0
 d8d58067-ee16-4e4d-b4e9-6f914c14ea56	INV001084	1c2242c0-c801-448c-9bb2-e295d7c218b5	Natalie Leone	taliee09@gmail.com	\N	\N	\N	199.00	0.00	199.00	paid	\N	\N	2026-03-02 20:17:24.960871+05	\N	\N	\N	\N	2026-02-03 05:00:00+05	2026-02-03 00:37:58.737918+05	2026-03-02 20:17:24.960871+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: Sosocial\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4363	0.00	0	\N	\N	\N
-89d7f088-757c-4f14-ac2e-4bedc675cddd	INV001094	1c2242c0-c801-448c-9bb2-e295d7c218b5	North Star Fertility	mlugria@nsfertility.com	\N	\N	\N	962.50	0.00	962.50	due	\N	\N	\N	\N	\N	\N	\N	2026-04-04 05:00:00+05	2026-04-02 23:16:13.00033+05	2026-04-02 23:19:20.731311+05	Sosocial.media\nPhone: +1 (772) 834-6484\nEmail: juliannampereira03@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: Sosocial\nBank Name: Bluevine Bank\nACH/Routing: 125109019\nAccount #: 875106924363	0.00	0	\N	\N	\N
 1d3a6ab6-3dee-47d9-b4ae-5d518448fb53	INV001087	1c2242c0-c801-448c-9bb2-e295d7c218b5	Kent Farrington	accounting@helijetusa.com	HeliJet Solutions	\N	\N	1520.90	0.00	1520.90	paid	\N	\N	2026-03-16 21:39:50.105015+05	\N	\N	\N	\N	2026-02-24 05:00:00+05	2026-02-26 01:09:45.794949+05	2026-03-16 21:39:50.105015+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	1520.90	0	\N	\N	\N
 06b9be76-a502-47d5-8d2b-1322687a1c46	INV001088	1c2242c0-c801-448c-9bb2-e295d7c218b5	John Scott Hundley	accounting@helijetusa.com	Hundley Farms, Inc	P.O. Box H, Loxahatchee, Florida 33470, USA	\N	1520.02	0.00	1520.02	sent	\N	\N	\N	\N	\N	\N	\N	2026-02-12 05:00:00+05	2026-02-26 20:11:56.922739+05	2026-03-26 01:08:13.882738+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	0.00	0	\N	\N	\N
 5fcde7ff-2222-4555-aaa9-3259db2b56a3	INV001089	1c2242c0-c801-448c-9bb2-e295d7c218b5	North Star Fertility	mlugria@nsfertility.com	\N	\N	\N	2000.00	0.00	2000.00	paid	\N	\N	2026-03-16 20:07:46.157264+05	\N	\N	\N	\N	2026-03-03 05:00:00+05	2026-03-03 01:20:45.180814+05	2026-03-16 20:07:46.157264+05	Sosocial.media\nPhone: +1 (772) 834-6484\nEmail: juliannampereira03@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: Sosocial\nBank Name: Bluevine Bank\nACH/Routing: 125109019\nAccount #: 875106924363	2000.00	0	\N	\N	\N
@@ -1200,11 +1283,13 @@ fbc93fc2-e6f9-4903-b562-683797b25286	INV001092	1c2242c0-c801-448c-9bb2-e295d7c21
 b2ca4c8e-5916-4ae7-88bc-7ba5b36e5c9d	INV001093	1c2242c0-c801-448c-9bb2-e295d7c218b5	Patrick Rayburn	patrick@vetrimaxanimalhealth.com	VetriMax	\N	\N	5000.00	0.00	5000.00	due	\N	\N	\N	\N	\N	\N	\N	2026-03-23 05:00:00+05	2026-03-23 20:50:11.573063+05	2026-04-01 23:20:10.373836+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	2000.00	0	\N	\N	\N
 99102b7d-0114-449b-a55d-0d54ee58dd90	INV001085	1c2242c0-c801-448c-9bb2-e295d7c218b5	AV1	accounting@helijetusa.com	AV1	\N	\N	1520.80	0.00	1520.80	paid	\N	\N	2026-04-01 23:20:37.620245+05	\N	\N	\N	\N	2026-02-06 05:00:00+05	2026-02-06 19:34:26.451733+05	2026-04-01 23:20:37.620245+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	1520.80	0	\N	\N	\N
 f8745777-3bfb-40ea-8c56-d54c8ff0faea	INV001095	1c2242c0-c801-448c-9bb2-e295d7c218b5	MT Citation	accounting@helijet.com	\N	\N	\N	1500.00	0.00	1500.00	due	\N	\N	\N	\N	\N	\N	\N	2026-03-12 05:00:00+05	2026-04-02 23:35:35.999099+05	2026-04-02 23:35:35.999099+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	0.00	0	\N	\N	\N
+89d7f088-757c-4f14-ac2e-4bedc675cddd	INV001094	1c2242c0-c801-448c-9bb2-e295d7c218b5	North Star Fertility	mlugria@nsfertility.com	\N	\N	\N	962.50	0.00	962.50	paid	\N	\N	2026-04-13 21:01:44.171996+05	\N	\N	\N	\N	2026-04-04 05:00:00+05	2026-04-02 23:16:13.00033+05	2026-04-13 21:01:44.171996+05	Sosocial.media\nPhone: +1 (772) 834-6484\nEmail: juliannampereira03@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: Sosocial\nBank Name: Bluevine Bank\nACH/Routing: 125109019\nAccount #: 875106924363	962.50	0	\N	\N	\N
+7540f34a-efe8-413a-aa48-00e98cf4bce4	INV001096	1c2242c0-c801-448c-9bb2-e295d7c218b5	Dave Petterson	accounting@helijetusa.com	\N	10 Fairway Drive, Suite 217, Deerfield Beach, Florida, 33441, United States of America	\N	1500.00	0.00	1500.00	due	\N	\N	\N	\N	\N	\N	\N	2026-04-13 05:00:00+05	2026-04-13 23:26:21.615669+05	2026-04-13 23:26:21.615669+05	Jordan Hardison / Sosocial.media\nPhone: 772-323-5828\nEmail: jordanahardison@gmail.com\nMailing Address: 5809 sunset blvd. Fort Pierce, Fl. 34982\n\nBank Info:\nCompany Name: AIO.Church\nBank Name: Coastal Community Bank\nACH/Routing: 125109019\nAccount #: 8751-0692-4355	0.00	0	\N	\N	\N
 \.
 
 
 --
--- Data for Name: item_templates; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: item_templates; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.item_templates (id, user_id, type, content, usage_count, created_at, updated_at) FROM stdin;
@@ -1216,7 +1301,7 @@ COPY public.item_templates (id, user_id, type, content, usage_count, created_at,
 
 
 --
--- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.payments (id, invoice_id, amount, payment_method, reference, notes, paid_at, created_at) FROM stdin;
@@ -1225,24 +1310,25 @@ cc3eae27-b29f-4bd4-8288-7cf748796d19	b2ca4c8e-5916-4ae7-88bc-7ba5b36e5c9d	2000.0
 
 
 --
--- Data for Name: rate_limits; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: rate_limits; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.rate_limits (id, key, count, window_start) FROM stdin;
 1da6aea1-d3c5-4862-9fca-c9ffaba55bf3	invoices:create:459e5046-db6a-45ab-8922-6a39e92e14fc	2	2026-01-08 20:32:44.573+05
-a2647310-9055-4635-a504-5669196ad058	invoice:get:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-04-07 00:57:20.305+05
 64f8e015-0c45-4cd3-986e-4dece3b45cff	service-template:create:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-01-15 21:07:27.051+05
 08da934a-995d-4ad7-baa0-42ca7102e349	invoice:delete:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-03-03 01:18:39.704+05
 0edb863a-da30-42d2-9de4-566ce9c364f5	item-template:create:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-01-09 01:26:35.941+05
-0e6fd471-a706-4297-893f-2c4833754a2f	invoice:update:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-04-02 23:19:20.688+05
 0bc93f15-c90a-4628-af7a-f01ce5e16d18	receipt:delete:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-01-08 22:39:47.406+05
 4e1d5fa9-533d-40bb-92b3-d664c7debcec	receipt:upload:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-03-16 21:36:59.269+05
-56e4fdfe-cdf7-4fe4-9ac3-1bc0cc672636	invoices:create:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-04-02 23:35:35.919+05
+0c2cf87a-e8c2-46b5-a69b-37c45a7d5111	invoice:get:04384543-32b3-43b0-ab98-8be08c0c080b	14	2026-04-13 20:58:42.781+05
+0e6fd471-a706-4297-893f-2c4833754a2f	invoice:update:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-04-13 21:01:44.118+05
+56e4fdfe-cdf7-4fe4-9ac3-1bc0cc672636	invoices:create:1c2242c0-c801-448c-9bb2-e295d7c218b5	1	2026-04-13 23:26:21.554+05
+a2647310-9055-4635-a504-5669196ad058	invoice:get:1c2242c0-c801-448c-9bb2-e295d7c218b5	2	2026-04-13 23:26:21.723+05
 \.
 
 
 --
--- Data for Name: receipts; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: receipts; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.receipts (id, filename, filepath, mime_type, size, invoice_id, created_at, attachment_type) FROM stdin;
@@ -1269,7 +1355,7 @@ cdea8405-86fd-40d3-8815-a52af40b9d2d	b19088b98c884852878e4da125915c35.jpg	/api/r
 
 
 --
--- Data for Name: service_templates; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: service_templates; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.service_templates (id, user_id, name, description, service_type, default_price, travel_subtype, usage_count, created_at, updated_at) FROM stdin;
@@ -1278,7 +1364,7 @@ COPY public.service_templates (id, user_id, name, description, service_type, def
 
 
 --
--- Data for Name: status_history; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: status_history; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.status_history (id, invoice_id, status, changed_at, notes, created_at) FROM stdin;
@@ -1300,11 +1386,12 @@ b914d3ce-5287-46de-affa-1bddcc7e8b57	a7c110a5-637a-49af-9ae0-e269484daf4f	paid	2
 e9a0c764-6ca2-4d51-bf62-7436ef073f96	df9740a3-a833-4871-94e3-07a3974620f2	paid	2026-03-26 01:07:25.796+05	\N	2026-03-26 01:07:25.796516+05
 4369dc73-e910-4f84-abcb-a29bc41eaabb	39dfb43a-e6aa-4a5b-87a4-7d30a7b59597	paid	2026-04-01 23:20:27.435+05	\N	2026-04-01 23:20:27.435739+05
 ca4af6b5-3606-491d-a5c2-bb0eb2bc4747	99102b7d-0114-449b-a55d-0d54ee58dd90	paid	2026-04-01 23:20:37.618+05	\N	2026-04-01 23:20:37.618986+05
+1ccbf0e2-90fe-41b5-890e-06de2fdfd94c	89d7f088-757c-4f14-ac2e-4bedc675cddd	paid	2026-04-13 21:01:44.167+05	\N	2026-04-13 21:01:44.167486+05
 \.
 
 
 --
--- Data for Name: trip_legs; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: trip_legs; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.trip_legs (id, invoice_item_id, leg_order, from_airport, to_airport, trip_date, trip_date_end, passengers, created_at) FROM stdin;
@@ -1312,16 +1399,16 @@ COPY public.trip_legs (id, invoice_item_id, leg_order, from_airport, to_airport,
 
 
 --
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: zainsaffi
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: mac
 --
 
 COPY public.users (id, email, password, name, business_name, business_email, business_phone, business_address, tax_id, currency, invoice_prefix, default_due_days, bank_name, account_name, account_number, routing_number, iban, paypal_email, payment_notes, created_at, updated_at) FROM stdin;
-1c2242c0-c801-448c-9bb2-e295d7c218b5	test@example.com	$2b$12$uNj84g5W1YFbeqjspZaP0ukUMeyWaVY8RuYi4DN1CQEcR84DLqKY6	Test User	\N	\N	\N	\N	\N	USD	INV	30	\N	\N	\N	\N	\N	\N	\N	2026-01-08 20:36:31.666192+05	2026-03-09 22:11:53.098313+05
+1c2242c0-c801-448c-9bb2-e295d7c218b5	test@example.com	$2b$10$V8tGCsJWLp1eVKS7e8fOgOxFH4gDTaEwYadASazAfcAn.ox.6ra66	Test User	\N	\N	\N	\N	\N	USD	INV	30	\N	\N	\N	\N	\N	\N	\N	2026-01-08 20:36:31.666192+05	2026-04-13 20:57:04.872426+05
 \.
 
 
 --
--- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.audit_logs
@@ -1329,7 +1416,7 @@ ALTER TABLE ONLY public.audit_logs
 
 
 --
--- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.customers
@@ -1337,7 +1424,7 @@ ALTER TABLE ONLY public.customers
 
 
 --
--- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoice_items
@@ -1345,7 +1432,7 @@ ALTER TABLE ONLY public.invoice_items
 
 
 --
--- Name: invoices invoices_invoice_number_key; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoices invoices_invoice_number_key; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoices
@@ -1353,7 +1440,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: invoices invoices_payment_token_key; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoices invoices_payment_token_key; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoices
@@ -1361,7 +1448,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoices
@@ -1369,7 +1456,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: item_templates item_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: item_templates item_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.item_templates
@@ -1377,7 +1464,7 @@ ALTER TABLE ONLY public.item_templates
 
 
 --
--- Name: item_templates item_templates_user_id_type_content_key; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: item_templates item_templates_user_id_type_content_key; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.item_templates
@@ -1385,7 +1472,7 @@ ALTER TABLE ONLY public.item_templates
 
 
 --
--- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.payments
@@ -1393,7 +1480,7 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- Name: rate_limits rate_limits_key_key; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: rate_limits rate_limits_key_key; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.rate_limits
@@ -1401,7 +1488,7 @@ ALTER TABLE ONLY public.rate_limits
 
 
 --
--- Name: rate_limits rate_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: rate_limits rate_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.rate_limits
@@ -1409,7 +1496,7 @@ ALTER TABLE ONLY public.rate_limits
 
 
 --
--- Name: receipts receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: receipts receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.receipts
@@ -1417,7 +1504,7 @@ ALTER TABLE ONLY public.receipts
 
 
 --
--- Name: service_templates service_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: service_templates service_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.service_templates
@@ -1425,7 +1512,7 @@ ALTER TABLE ONLY public.service_templates
 
 
 --
--- Name: status_history status_history_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: status_history status_history_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.status_history
@@ -1433,7 +1520,7 @@ ALTER TABLE ONLY public.status_history
 
 
 --
--- Name: trip_legs trip_legs_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: trip_legs trip_legs_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.trip_legs
@@ -1441,7 +1528,7 @@ ALTER TABLE ONLY public.trip_legs
 
 
 --
--- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.users
@@ -1449,7 +1536,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.users
@@ -1457,203 +1544,203 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: idx_audit_logs_created_at; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_audit_logs_created_at; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_audit_logs_created_at ON public.audit_logs USING btree (created_at DESC);
 
 
 --
--- Name: idx_audit_logs_user_id; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_audit_logs_user_id; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_audit_logs_user_id ON public.audit_logs USING btree (user_id);
 
 
 --
--- Name: idx_customers_email; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_customers_email; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_customers_email ON public.customers USING btree (email);
 
 
 --
--- Name: idx_customers_name; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_customers_name; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_customers_name ON public.customers USING btree (name);
 
 
 --
--- Name: idx_customers_user; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_customers_user; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_customers_user ON public.customers USING btree (user_id);
 
 
 --
--- Name: idx_invoice_items_invoice_id; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_invoice_items_invoice_id; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_invoice_items_invoice_id ON public.invoice_items USING btree (invoice_id);
 
 
 --
--- Name: idx_invoices_created_at; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_invoices_created_at; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_invoices_created_at ON public.invoices USING btree (created_at DESC);
 
 
 --
--- Name: idx_invoices_customer; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_invoices_customer; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_invoices_customer ON public.invoices USING btree (customer_id);
 
 
 --
--- Name: idx_invoices_payment_token; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_invoices_payment_token; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_invoices_payment_token ON public.invoices USING btree (payment_token);
 
 
 --
--- Name: idx_invoices_status; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_invoices_status; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_invoices_status ON public.invoices USING btree (status);
 
 
 --
--- Name: idx_invoices_user_id; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_invoices_user_id; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_invoices_user_id ON public.invoices USING btree (user_id);
 
 
 --
--- Name: idx_item_templates_usage; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_item_templates_usage; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_item_templates_usage ON public.item_templates USING btree (user_id, type, usage_count DESC);
 
 
 --
--- Name: idx_item_templates_user_type; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_item_templates_user_type; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_item_templates_user_type ON public.item_templates USING btree (user_id, type);
 
 
 --
--- Name: idx_payments_invoice_id; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_payments_invoice_id; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_payments_invoice_id ON public.payments USING btree (invoice_id);
 
 
 --
--- Name: idx_payments_paid_at; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_payments_paid_at; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_payments_paid_at ON public.payments USING btree (paid_at DESC);
 
 
 --
--- Name: idx_rate_limits_key; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_rate_limits_key; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_rate_limits_key ON public.rate_limits USING btree (key);
 
 
 --
--- Name: idx_receipts_invoice_id; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_receipts_invoice_id; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_receipts_invoice_id ON public.receipts USING btree (invoice_id);
 
 
 --
--- Name: idx_service_templates_type; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_service_templates_type; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_service_templates_type ON public.service_templates USING btree (service_type);
 
 
 --
--- Name: idx_service_templates_usage; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_service_templates_usage; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_service_templates_usage ON public.service_templates USING btree (usage_count DESC);
 
 
 --
--- Name: idx_service_templates_user; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_service_templates_user; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_service_templates_user ON public.service_templates USING btree (user_id);
 
 
 --
--- Name: idx_status_history_changed_at; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_status_history_changed_at; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_status_history_changed_at ON public.status_history USING btree (changed_at);
 
 
 --
--- Name: idx_status_history_invoice_id; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_status_history_invoice_id; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_status_history_invoice_id ON public.status_history USING btree (invoice_id);
 
 
 --
--- Name: idx_trip_legs_item; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_trip_legs_item; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_trip_legs_item ON public.trip_legs USING btree (invoice_item_id);
 
 
 --
--- Name: idx_trip_legs_order; Type: INDEX; Schema: public; Owner: zainsaffi
+-- Name: idx_trip_legs_order; Type: INDEX; Schema: public; Owner: mac
 --
 
 CREATE INDEX idx_trip_legs_order ON public.trip_legs USING btree (invoice_item_id, leg_order);
 
 
 --
--- Name: customers update_customers_updated_at; Type: TRIGGER; Schema: public; Owner: zainsaffi
+-- Name: customers update_customers_updated_at; Type: TRIGGER; Schema: public; Owner: mac
 --
 
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON public.customers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
--- Name: invoices update_invoices_updated_at; Type: TRIGGER; Schema: public; Owner: zainsaffi
+-- Name: invoices update_invoices_updated_at; Type: TRIGGER; Schema: public; Owner: mac
 --
 
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
--- Name: service_templates update_service_templates_updated_at; Type: TRIGGER; Schema: public; Owner: zainsaffi
+-- Name: service_templates update_service_templates_updated_at; Type: TRIGGER; Schema: public; Owner: mac
 --
 
 CREATE TRIGGER update_service_templates_updated_at BEFORE UPDATE ON public.service_templates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
--- Name: users update_users_updated_at; Type: TRIGGER; Schema: public; Owner: zainsaffi
+-- Name: users update_users_updated_at; Type: TRIGGER; Schema: public; Owner: mac
 --
 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
--- Name: audit_logs audit_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: audit_logs audit_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.audit_logs
@@ -1661,7 +1748,7 @@ ALTER TABLE ONLY public.audit_logs
 
 
 --
--- Name: customers customers_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: customers customers_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.customers
@@ -1669,7 +1756,7 @@ ALTER TABLE ONLY public.customers
 
 
 --
--- Name: invoice_items invoice_items_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoice_items invoice_items_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoice_items
@@ -1677,7 +1764,7 @@ ALTER TABLE ONLY public.invoice_items
 
 
 --
--- Name: invoices invoices_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoices invoices_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoices
@@ -1685,7 +1772,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: invoices invoices_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: invoices invoices_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.invoices
@@ -1693,7 +1780,7 @@ ALTER TABLE ONLY public.invoices
 
 
 --
--- Name: item_templates item_templates_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: item_templates item_templates_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.item_templates
@@ -1701,7 +1788,7 @@ ALTER TABLE ONLY public.item_templates
 
 
 --
--- Name: payments payments_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: payments payments_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.payments
@@ -1709,7 +1796,7 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- Name: receipts receipts_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: receipts receipts_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.receipts
@@ -1717,7 +1804,7 @@ ALTER TABLE ONLY public.receipts
 
 
 --
--- Name: service_templates service_templates_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: service_templates service_templates_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.service_templates
@@ -1725,7 +1812,7 @@ ALTER TABLE ONLY public.service_templates
 
 
 --
--- Name: status_history status_history_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: status_history status_history_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.status_history
@@ -1733,7 +1820,7 @@ ALTER TABLE ONLY public.status_history
 
 
 --
--- Name: trip_legs trip_legs_invoice_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: zainsaffi
+-- Name: trip_legs trip_legs_invoice_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: mac
 --
 
 ALTER TABLE ONLY public.trip_legs
@@ -1744,5 +1831,5 @@ ALTER TABLE ONLY public.trip_legs
 -- PostgreSQL database dump complete
 --
 
-\unrestrict hghqVdC0pUOe0rPdsjvD7tZvwIuJ7hi4wnny5q5IAFpOJoCoeMaNleCIHco6ocC
+\unrestrict en6BcjY6wzUlFaKFbzD0GGXqik0fhINfupf5R19X5DrREgXi9h4RJbkMGxrlZeq
 
