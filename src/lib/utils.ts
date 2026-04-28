@@ -79,8 +79,11 @@ export function getDisplayStatus(invoice: {
   // If status is explicitly draft, return draft
   if (invoice.status === "draft") return "draft";
 
-  // If status is sent, check due date for overdue
-  if (invoice.status === "sent" || invoice.emailSentAt) {
+  // Explicit "sent" status is honored as-is — manual choice wins over computed overdue
+  if (invoice.status === "sent") return "sent";
+
+  // Auto-sent (email dispatched without explicit status) still gets overdue computation
+  if (invoice.emailSentAt) {
     if (invoice.dueDate) {
       const now = new Date();
       const dueDate = new Date(invoice.dueDate);
