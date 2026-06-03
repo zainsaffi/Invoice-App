@@ -40,7 +40,12 @@ export default function SettingsPage() {
           const data = await response.json();
           setFormData((prev) => ({
             ...prev,
-            ...data,
+            ...Object.fromEntries(
+              Object.entries(data).map(([key, val]) => [
+                key,
+                val ?? prev[key as keyof typeof prev],
+              ])
+            ),
             defaultDueDays: String(data.defaultDueDays || 30),
           }));
         }

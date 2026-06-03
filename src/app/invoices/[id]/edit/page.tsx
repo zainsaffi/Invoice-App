@@ -45,7 +45,7 @@ export default function EditInvoicePage({
             clientAddress: data.clientAddress || "",
             items: data.items.map((item: { title: string; description: string; quantity: number; unitPrice: number }) => ({
               title: item.title || "",
-              description: item.description,
+              description: item.description || "",
               quantity: item.quantity,
               unitPrice: item.unitPrice,
             })),
